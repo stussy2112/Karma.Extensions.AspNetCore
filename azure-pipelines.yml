@@ -55,11 +55,9 @@ steps:
     testRunTitle: 'Unit Tests'
     zipAfterPublish: false
 
-- task: PublishCodeCoverageResults@1
-    inputs:
-      codeCoverageTool: 'Cobertura' # Or JaCoCo, depending on your output format
-      summaryFileLocation: '$(Agent.TempDirectory)/**/*.cobertura.xml' # Path to your coverage report
-      reportDirectory: '$(Agent.TempDirectory)' # Optional: directory containing detailed reports
+- task: PublishCodeCoverageResults@2
+  inputs:
+    summaryFileLocation: '$(Agent.TempDirectory)/**/*.cobertura.xml'
 
 
 
