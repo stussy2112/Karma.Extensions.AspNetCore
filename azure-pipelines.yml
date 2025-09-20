@@ -49,7 +49,7 @@ steps:
   displayName: 'Run unit tests'
   inputs:
     command: 'test'
-    projects: '**/*Tests/*.csproj'
+    projects: '**/*tests/**/*.csproj'
     arguments: '--configuration $(buildConfiguration) --no-build --logger trx --results-directory $(Build.SourcesDirectory)/TestResults'
     publishTestResults: true
     testRunTitle: 'Unit Tests'
