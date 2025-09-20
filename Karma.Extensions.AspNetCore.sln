@@ -1,0 +1,74 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "source", "source", "{B8EFCA5F-814F-285C-A8CB-F00F14650265}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Karma.Extensions.AspNetCore", "src\Karma.Extensions.AspNetCore\Karma.Extensions.AspNetCore.csproj", "{99062E7F-AEC4-4B20-9997-BE7E79A0AB58}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{0AB3BF05-4346-4AA6-1389-037BE0695223}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Karma.Extensions.AspNetCore.Tests", "tests\Karma.Extensions.AspNetCore.Tests\Karma.Extensions.AspNetCore.Tests.csproj", "{B29797D8-C885-4256-BF62-BE77933155CB}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{089100B1-113F-4E66-888A-E83F3999EAFD}"
+	ProjectSection(SolutionItems) = preProject
+		.editorconfig = .editorconfig
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "copilot", "copilot", "{02EA681E-C7D8-13C7-8484-4AC65E1B71E8}"
+	ProjectSection(SolutionItems) = preProject
+		.github\prompts\code-review.prompt.md = .github\prompts\code-review.prompt.md
+		.github\instructions\coding-guidelines.instructions.md = .github\instructions\coding-guidelines.instructions.md
+		.github\instructions\coding-style.instructions.md = .github\instructions\coding-style.instructions.md
+		.github\copilot-instructions.md = .github\copilot-instructions.md
+		.github\instructions\testing-mstest.instructions.md = .github\instructions\testing-mstest.instructions.md
+	EndProjectSection
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Debug|x64 = Debug|x64
+		Debug|x86 = Debug|x86
+		Release|Any CPU = Release|Any CPU
+		Release|x64 = Release|x64
+		Release|x86 = Release|x86
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{99062E7F-AEC4-4B20-9997-BE7E79A0AB58}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{99062E7F-AEC4-4B20-9997-BE7E79A0AB58}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{99062E7F-AEC4-4B20-9997-BE7E79A0AB58}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{99062E7F-AEC4-4B20-9997-BE7E79A0AB58}.Debug|x64.Build.0 = Debug|Any CPU
+		{99062E7F-AEC4-4B20-9997-BE7E79A0AB58}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{99062E7F-AEC4-4B20-9997-BE7E79A0AB58}.Debug|x86.Build.0 = Debug|Any CPU
+		{99062E7F-AEC4-4B20-9997-BE7E79A0AB58}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{99062E7F-AEC4-4B20-9997-BE7E79A0AB58}.Release|Any CPU.Build.0 = Release|Any CPU
+		{99062E7F-AEC4-4B20-9997-BE7E79A0AB58}.Release|x64.ActiveCfg = Release|Any CPU
+		{99062E7F-AEC4-4B20-9997-BE7E79A0AB58}.Release|x64.Build.0 = Release|Any CPU
+		{99062E7F-AEC4-4B20-9997-BE7E79A0AB58}.Release|x86.ActiveCfg = Release|Any CPU
+		{99062E7F-AEC4-4B20-9997-BE7E79A0AB58}.Release|x86.Build.0 = Release|Any CPU
+		{B29797D8-C885-4256-BF62-BE77933155CB}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B29797D8-C885-4256-BF62-BE77933155CB}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B29797D8-C885-4256-BF62-BE77933155CB}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{B29797D8-C885-4256-BF62-BE77933155CB}.Debug|x64.Build.0 = Debug|Any CPU
+		{B29797D8-C885-4256-BF62-BE77933155CB}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{B29797D8-C885-4256-BF62-BE77933155CB}.Debug|x86.Build.0 = Debug|Any CPU
+		{B29797D8-C885-4256-BF62-BE77933155CB}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B29797D8-C885-4256-BF62-BE77933155CB}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B29797D8-C885-4256-BF62-BE77933155CB}.Release|x64.ActiveCfg = Release|Any CPU
+		{B29797D8-C885-4256-BF62-BE77933155CB}.Release|x64.Build.0 = Release|Any CPU
+		{B29797D8-C885-4256-BF62-BE77933155CB}.Release|x86.ActiveCfg = Release|Any CPU
+		{B29797D8-C885-4256-BF62-BE77933155CB}.Release|x86.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{99062E7F-AEC4-4B20-9997-BE7E79A0AB58} = {B8EFCA5F-814F-285C-A8CB-F00F14650265}
+		{B29797D8-C885-4256-BF62-BE77933155CB} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
+		{02EA681E-C7D8-13C7-8484-4AC65E1B71E8} = {089100B1-113F-4E66-888A-E83F3999EAFD}
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {A6372200-84F2-4043-87EE-21513449471A}
+	EndGlobalSection
+EndGlobal
