@@ -50,10 +50,12 @@ steps:
   inputs:
     command: 'test'
     projects: '**/*tests/**/*.csproj'
-    arguments: '--configuration $(buildConfiguration) --no-build --logger trx'
+    arguments: '--configuration $(buildConfiguration) --no-build --logger trx --collect "Code coverage"'
     publishTestResults: true
     testRunTitle: 'Unit Tests'
     zipAfterPublish: false
+
+
 
 
 
