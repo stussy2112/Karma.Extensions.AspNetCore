@@ -49,8 +49,8 @@ steps:
   displayName: 'Run unit tests'
   inputs:
     command: 'test'
-    projects: '**/*Tests/*.csproj'
-    arguments: '--configuration $(buildConfiguration) --no-build --logger trx --results-directory $(Build.SourcesDirectory)/TestResults'
+    projects: '**/*tests/**/*.csproj'
+    arguments: '--configuration $(buildConfiguration) --no-build --logger trx'
     publishTestResults: true
     testRunTitle: 'Unit Tests'
     zipAfterPublish: false
