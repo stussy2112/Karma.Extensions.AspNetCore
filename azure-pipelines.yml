@@ -50,10 +50,16 @@ steps:
   inputs:
     command: 'test'
     projects: '**/*tests/**/*.csproj'
-    arguments: '--configuration $(buildConfiguration) --no-build --collect "Code Coverage"'
+    arguments: '--configuration $(buildConfiguration) --no-build --collect "XPlat Code Coverage"'
     publishTestResults: true
     testRunTitle: 'Unit Tests'
     zipAfterPublish: false
+
+- task: PublishCodeCoverageResults@1
+    inputs:
+      codeCoverageTool: 'Cobertura' # Or JaCoCo, depending on your output format
+      summaryFileLocation: '$(Agent.TempDirectory)/**/*.cobertura.xml' # Path to your coverage report
+      reportDirectory: '$(Agent.TempDirectory)' # Optional: directory containing detailed reports
 
 
 
