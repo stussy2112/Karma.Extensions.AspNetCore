@@ -68,6 +68,11 @@ steps:
     testRunTitle: 'Unit Tests'
     publishTestResults: false
 
+- task: PublishCodeCoverageResults@2
+  displayName: 'Publish Code Coverage'
+  inputs:
+    summaryFileLocation: '$(Agent.TempDirectory)/**/*.*cobertura.xml'
+
 - task: PublishTestResults@2
   displayName: 'Publish Test Results'
   inputs:
