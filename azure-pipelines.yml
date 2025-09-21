@@ -51,10 +51,8 @@ steps:
     command: 'test'
     configuration: '$(buildConfiguration)'
     projects: '**/*tests/**/*.csproj'
-    nobuild: true
-    arguments: '--collect "Code Coverage"'
+    arguments: '--no-restore --no-build --collect "Code Coverage" --logger "trx;results.trx"'
     testRunTitle: 'Unit Tests'
-    testResultsFiles: '**/TestResults/*.trx'
 
 
 
