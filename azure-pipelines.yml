@@ -64,7 +64,7 @@ steps:
   inputs:
     command: 'test'
     projects: '**/*tests/**/*.csproj'
-    arguments: '--no-build --configuration $(BuildConfiguration) --results-directory $(Agent.TempDirectory)  --coverage --report-trx'
+    arguments: '--no-build --configuration $(BuildConfiguration) --results-directory $(Agent.TempDirectory) --collect "Code Coverage;Format=cobertura" --logger trx'
     testRunTitle: 'Unit Tests'
     publishTestResults: false
 
