@@ -11,7 +11,7 @@ trigger:
     - develop
 
 pool:
-  vmImage: 'ubuntu-latest'
+  vmImage: 'windows-latest'
 
 variables:
   solution: '**/*.sln'
@@ -33,8 +33,8 @@ steps:
     projectName: Karma.Extensions.AspNetCore
     extraProperties: |
       sonar.exclusions=**/obj/**,**/*.dll,**/samples/**
-      sonar.cs.opencover.reportsPaths="$(Agent.TempDirectory)/Coverage/coverage.*opencover.xml"
-      sonar.cs.vstest.reportsPaths="$(Agent.TempDirectory)/**/*.trx"
+      sonar.cs.opencover.reportsPaths="$(Common.TestResultsDirectory)/Coverage/coverage.*opencover.xml"
+      sonar.cs.vstest.reportsPaths="$(Common.TestResultsDirectory)/**/*.trx"
       sonar.scanner.scanAll=false
       sonar.scanner.skipJreProvisioning=true
 
@@ -64,7 +64,7 @@ steps:
   inputs:
     command: 'test'
     projects: '**/*tests/**/*.csproj'
-    arguments: '--no-restore --no-build --configuration $(BuildConfiguration) --results-directory $(Agent.TempDirectory) --collect "Code Coverage" --logger trx'
+    arguments: '--no-restore --no-build --configuration $(BuildConfiguration) --results-directory $(Common.TestResultsDirectory) --collect "XPlat Code Coverage" --logger "trx;test-output.trx"'
     testRunTitle: 'Unit Tests'
     publishTestResults: false
 
@@ -73,7 +73,7 @@ steps:
   inputs:
     testResultsFormat: 'VSTest'
     testResultsFiles: '*.trx'
-    searchFolder: '$(Agent.TempDirectory)'
+    searchFolder: '$(Common.TestResultsDirectory)'
 
 - task: SonarCloudAnalyze@3
   displayName: 'Run Code Analysis'
