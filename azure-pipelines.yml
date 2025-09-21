@@ -71,7 +71,7 @@ steps:
 - task: PublishCodeCoverageResults@2
   displayName: 'Publish Code Coverage'
   inputs:
-    summaryFileLocation: '$(Agent.TempDirectory)/**/*.*cobertura.xml'
+    summaryFileLocation: '$(Agent.TempDirectory)/**/*.*opencover.xml'
 
 - task: PublishTestResults@2
   displayName: 'Publish Test Results'
