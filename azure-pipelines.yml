@@ -54,6 +54,7 @@ steps:
     nobuild: true
     arguments: '--collect "Code Coverage"'
     testRunTitle: 'Unit Tests'
+    testResultsFiles: '**/TestResults/*.trx'
 
 
 
