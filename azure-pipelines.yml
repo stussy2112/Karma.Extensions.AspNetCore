@@ -31,6 +31,12 @@ steps:
     scannerMode: 'dotnet'
     projectKey: 'stussy2112_Karma.Extensions.AspNetCore'
     projectName: Karma.Extensions.AspNetCore
+    extraProperties: |
+      sonar.exclusions=**/obj/**,**/*.dll,**/samples/**
+      sonar.cs.opencover.reportsPaths="$(Agent.TempDirectory)/**/*.opencover.xml"
+      sonar.cs.vstest.reportsPaths="$(Agent.TempDirectory)/**/*.trx"
+      sonar.scanner.scanAll=true
+      sonar.scanner.skipJreProvisioning=true
 
 - task: UseDotNet@2
   displayName: 'Use .NET SDK 8.x'
@@ -58,7 +64,7 @@ steps:
   inputs:
     command: 'test'
     projects: '**/*tests/**/*.csproj'
-    arguments: '--no-build --configuration $(BuildConfiguration) --results-directory $(Agent.TempDirectory) --collect "Code Coverage;Format=cobertura,opencover" --logger trx'
+    arguments: '--no-build --configuration $(BuildConfiguration) --results-directory $(Agent.TempDirectory) --collect "XPlat Code Coverage;Format=cobertura,opencover" --logger trx'
     testRunTitle: 'Unit Tests'
     publishTestResults: false
 
