@@ -23,6 +23,22 @@ steps:
   clean: true
   fetchDepth: 0
 
+- task: SonarCloudPrepare@3
+  displayName: 'Prepare analysis on SonarCloud'
+  inputs:
+    SonarCloud: 'SonarCloud'
+    organization: 'azure-stussy2112'
+    scannerMode: 'dotnet'
+    projectKey: 'stussy2112_Karma.Extensions.AspNetCore'
+    projectName: Karma.Extensions.AspNetCore
+    extraProperties: |
+      sonar.exclusions=**/obj/**,**/*.dll,**/samples/**
+      sonar.cs.opencover.reportsPaths="$(Agent.TempDirectory)/Coverage/coverage.*opencover.xml"
+      sonar.cs.vstest.reportsPaths="$(Agent.TempDirectory)/**/*.trx"
+      sonar.scanner.scanAll=false
+      sonar.scanner.skipJreProvisioning=true
+
+
 - task: UseDotNet@2
   displayName: 'Use .NET SDK 8.x'
   inputs:
@@ -49,11 +65,25 @@ steps:
   displayName: 'Run unit tests'
   inputs:
     command: 'test'
-    configuration: '$(buildConfiguration)'
     projects: '**/*tests/**/*.csproj'
-    arguments: '--no-restore --no-build --collect "Code Coverage" --logger "trx;results.trx"'
+    arguments: '--no-restore --no-build --configuration $(BuildConfiguration) --results-directory $(Agent.TempDirectory) --collect "Code Coverage" --logger trx'
     testRunTitle: 'Unit Tests'
+    publishTestResults: false
 
+- task: PublishTestResults@2
+  displayName: 'Publish Test Results'
+  inputs:
+    testResultsFormat: 'VSTest'
+    testResultsFiles: '*.trx'
+    searchFolder: '$(Agent.TempDirectory)'
 
+- task: SonarCloudAnalyze@3
+  displayName: 'Run Code Analysis'
+  inputs:
+    jdkversion: 'JAVA_HOME_17_X64'
 
+- task: SonarCloudPublish@3
+  displayName: 'Publish Quality Gate Result'
+  inputs:
+    pollingTimeoutSec: '300'
 
