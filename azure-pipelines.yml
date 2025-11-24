@@ -33,7 +33,7 @@ steps:
     projectName: Karma.Extensions.AspNetCore
     extraProperties: |
       sonar.exclusions=**/obj/**,**/*.dll,**/samples/**
-      sonar.cs.opencover.reportsPaths="$(Agent.TempDirectory)/**/*.opencover.xml"
+      sonar.cs.cobertura.reportsPaths="$(Agent.TempDirectory)/**/*cobertura.xml"
       sonar.cs.vstest.reportsPaths="$(Agent.TempDirectory)/**/*.trx"
       sonar.scanner.scanAll=false
       sonar.scanner.skipJreProvisioning=true
@@ -71,7 +71,7 @@ steps:
 - task: PublishCodeCoverageResults@2
   displayName: 'Publish Code Coverage'
   inputs:
-    summaryFileLocation: '$(Agent.TempDirectory)/**/*.xml'
+    summaryFileLocation: '$(Agent.TempDirectory)/**/*cobertura.xml'
 
 - task: PublishTestResults@2
   displayName: 'Publish Test Results'
