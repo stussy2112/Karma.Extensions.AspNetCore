@@ -64,20 +64,22 @@ steps:
   inputs:
     command: 'test'
     projects: '**/*tests/**/*.csproj'
-    arguments: '--no-build --configuration $(BuildConfiguration) --collect "XPlat Code Coverage;Format=cobertura,opencover" --logger trx'
+    arguments: '--no-build --configuration $(BuildConfiguration) --coverage --coverage-output-format cobertura --logger trx'
     testRunTitle: 'Unit Tests'
     publishTestResults: true
 
 - task: PublishCodeCoverageResults@2
   displayName: 'Publish Code Coverage'
   inputs:
-    summaryFileLocation: '$(Agent.TempDirectory)/**/*.*opencover.xml'
+    summaryFileLocation: '$(Agent.TempDirectory)/**/*.xml'
 
 - task: PublishTestResults@2
   displayName: 'Publish Test Results'
   inputs:
     testResultsFormat: 'VSTest'
+    testResultsFiles: '**/*.trx'
     testResultsFiles: '$(Agent.TempDirectory)/**/*.trx'
+    mergeTestResults: true
 
 - task: SonarCloudAnalyze@3
   displayName: 'Run Code Analysis'
