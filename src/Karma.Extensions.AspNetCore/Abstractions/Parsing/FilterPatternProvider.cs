@@ -29,7 +29,7 @@ namespace Karma.Extensions.AspNetCore
 
     [StringSyntax(StringSyntaxAttribute.Regex)]
     private const string DefaultFilterPattern = @"
-(?<=^|\?|&)filter
+(?:(?<=^|\?|&)filter)
 (?:
     \[(?<type>group)\]
     (?:\[\$(?<conjunction>and|or)\])?

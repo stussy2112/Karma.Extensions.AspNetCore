@@ -4,13 +4,22 @@
 // </copyright>
 // -----------------------------------------------------------------------
 
+using System;
+
 namespace Karma.Extensions.AspNetCore
 {
   /// <summary>
   /// Represents page information for a set of data.
   /// </summary>
-  public sealed record PageInfo
+  public record PageInfo
   {
+    /// <summary>
+    /// Initializes a new instance of the <see cref="PageInfo"/> class.
+    /// </summary>
+    public PageInfo()
+    {
+    }
+
     /// <summary>
     /// Initializes a new instance of the <see cref="PageInfo"/> class with pagination details.
     /// </summary>
@@ -20,7 +29,7 @@ namespace Karma.Extensions.AspNetCore
     /// <param name="before">The cursor indicating the position before which to retrieve items. Defaults to an empty string.</param>
     /// <param name="offset">The zero-based index of the first item to retrieve. Must be 0 or greater. Defaults to 0.</param>
     /// <param name="limit">The maximum number of items to retrieve. Must be 1 or greater. Defaults to <see cref="uint.MaxValue"/>.</param>
-    public PageInfo(string after = "", string before = "", uint offset = 0, uint limit = uint.MaxValue) =>
+    internal PageInfo(string after, string before = "", uint offset = 0, uint limit = uint.MaxValue) =>
       (After, Before, Offset, Limit) = (after, before, offset, limit < 1 ? uint.MaxValue : limit);
 
     /// <summary>
@@ -29,9 +38,7 @@ namespace Karma.Extensions.AspNetCore
     /// <param name="after">The cursor/identifier of the item that is the start of the "page" of items.</param>
     /// <param name="limit">The limit of items to be queried.</param>
     public PageInfo(string after, uint limit = uint.MaxValue)
-      : this(after, string.Empty, 1, limit: limit)
-    {
-    }
+      : this(after, string.Empty, 1, limit: limit) => ArgumentException.ThrowIfNullOrWhiteSpace(after);
 
     /// <summary>
     /// Instantiates a new <see cref="PageInfo"/> instance.
@@ -46,18 +53,20 @@ namespace Karma.Extensions.AspNetCore
     /// <summary>
     /// The cursor/identifier of the item that is the start of the "page" of items.
     /// </summary>
-    public string After
+    public string? After
     {
       get;
-    }
+      init;
+    } = "";
 
     /// <summary>
     /// The cursor/identifier of the item that is the end of the "page" of items.
     /// </summary>
-    public string Before
+    public string? Before
     {
       get;
-    }
+      init;
+    } = "";
 
     /// <summary>
     /// The limit of items to be queried
@@ -65,6 +74,7 @@ namespace Karma.Extensions.AspNetCore
     public uint Limit
     {
       get;
+      init;
     } = uint.MaxValue;
 
     /// <summary>
@@ -73,7 +83,7 @@ namespace Karma.Extensions.AspNetCore
     public uint Offset
     {
       get;
+      init;
     } = 0;
-
   }
 }

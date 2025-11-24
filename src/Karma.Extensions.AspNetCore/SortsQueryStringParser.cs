@@ -18,15 +18,15 @@ namespace Karma.Extensions.AspNetCore
   {
     private const string ValueGroupName = "value";
 
-    // NOTE sort={type}.{field} // NOSONAR
-    [GeneratedRegex(@"(?<=^|\?|&)sort=(?<value>[\p{L}\p{N}.\-_ ]+[^&\r\n]*)", RegExConstants.RegExOptions, RegExConstants.Culture)]
+    // NOTE: sort={type}.{field} // NOSONAR
+    [GeneratedRegex(@"(?:(?<=^|\?|&)sort=)?(?<value>[\p{L}\p{N}.\-_ ]+[^&\r\n]*)", RegExConstants.RegExOptions, RegExConstants.Culture)]
     private static partial Regex SortInfoRegEx();
 
     /// <inheritdoc />
     public string ParameterKey
     {
       get;
-    } = QueryParameterNames.SortInfo;
+    } = QueryParameterNames.Sort;
 
     /// <inheritdoc />
     public IEnumerable<SortInfo> Parse(string input)

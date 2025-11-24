@@ -1706,12 +1706,10 @@ namespace Karma.Extensions.AspNetCore.Tests
       List<IFilterInfo> filters = [new FilterInfo("Name", nameof(TestEntity.Name), Operator.Regex, @"[invalid")];
 
       // Act & Assert - Should throw exception when compiling lambda due to invalid regex
+      Func<TestEntity, bool> lambda = FilterExpressionBuilder.BuildLambda<TestEntity>(filters);
       _ = Assert.ThrowsExactly<RegexParseException>(() =>
-      {
-        Func<TestEntity, bool> lambda = FilterExpressionBuilder.BuildLambda<TestEntity>(filters);
         // The exception occurs when the lambda is executed, not when it's built
-        _ = lambda(new TestEntity { Name = "test" });
-      });
+        lambda(new TestEntity { Name = "test" }));
     }
 
     [TestMethod]

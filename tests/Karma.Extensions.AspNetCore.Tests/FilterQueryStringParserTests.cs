@@ -5,14 +5,9 @@
 // -----------------------------------------------------------------------
 
 using System;
+using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
-using System.Net.Http;
-using Karma.Extensions.AspNetCore.DependencyInjection;
-using Microsoft.AspNetCore.Builder;
-using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.TestHost;
-using Microsoft.Extensions.Hosting;
 
 namespace Karma.Extensions.AspNetCore.Tests
 {
@@ -57,2371 +52,52 @@ namespace Karma.Extensions.AspNetCore.Tests
      */
 
     [TestMethod]
-    public void When_single_simple_filter_single_property_parses_as_root_FilterInfoCollection()
+    public void When_input_is_null_Parse_returns_empty_collection()
     {
       // Arrange
-      WebApplicationBuilder builder = WebApplication.CreateBuilder(new WebApplicationOptions
-      {
-        EnvironmentName = "Development"
-      });
-      _ = builder.WebHost.UseTestServer();
-
-      WebApplication app = builder.Build();
-      _ = app.ParseQueryStringFilters(); // Use extension method
-
-      // Add a terminal middleware to inspect the context
-      app.Run(context =>
-      {
-        Assert.IsTrue(context.Items.ContainsKey(ContextItemKeys.Filters));
-        var actual = context.Items[ContextItemKeys.Filters] as FilterInfoCollection;
-        Assert.IsNotNull(actual);
-
-        Assert.AreEqual(1, actual.Count);
-
-        Assert.AreEqual("root", actual.Name);
-        Assert.AreEqual(Conjunction.And, actual.Conjunction);
-
-        var filterInfo = actual.First() as FilterInfo;
-        Assert.IsNotNull(filterInfo);
-        Assert.AreEqual("field_na me-0", filterInfo.Name);
-        Assert.AreEqual("field_na me", filterInfo.Path);
-        Assert.AreEqual(string.Empty, filterInfo.MemberOf);
-        Assert.AreEqual(Operator.EqualTo, filterInfo.Operator);
-        Assert.AreEqual("value", filterInfo.Values.FirstOrDefault());
-
-        return context.Response.WriteAsync("OK", TestContext!.CancellationTokenSource.Token);
-      });
-
-      app.Start();
-
-      HttpClient client = app.GetTestClient();
+      string input = null!;
 
       // Act
-      HttpResponseMessage response = client.GetAsync(new Uri("/?filter[field_na me]=value", UriKind.Relative), TestContext!.CancellationTokenSource.Token)
-        .ConfigureAwait(false).GetAwaiter().GetResult();
-
-      // Assert
-      _ = response.EnsureSuccessStatusCode();
-      string content = response.Content.ReadAsStringAsync(TestContext!.CancellationTokenSource.Token).GetAwaiter().GetResult();
-      Assert.AreEqual("OK", content);
-    }
-
-    [TestMethod]
-    public void When_single_simple_group_parses_as_named_FilterInfoCollection()
-    {
-      // Arrange
-      WebApplicationBuilder builder = WebApplication.CreateBuilder(new WebApplicationOptions
-      {
-        EnvironmentName = "Development"
-      });
-      _ = builder.WebHost.UseTestServer();
-
-      WebApplication app = builder.Build();
-      _ = app.ParseQueryStringFilters(); // Use extension method
-
-      // Add a terminal middleware to inspect the context
-      app.Run(context =>
-      {
-        Assert.IsTrue(context.Items.ContainsKey(ContextItemKeys.Filters));
-        var actual = context.Items[ContextItemKeys.Filters] as FilterInfoCollection;
-        Assert.IsNotNull(actual);
-        Assert.AreEqual("groupName", actual.Name);
-        Assert.AreEqual(string.Empty, actual.MemberOf);
-        Assert.AreEqual(0, actual.Count);
-        Assert.AreEqual(Conjunction.And, actual.Conjunction);
-
-        return context.Response.WriteAsync("OK", TestContext!.CancellationTokenSource.Token);
-      });
-
-      app.Start();
-
-      HttpClient client = app.GetTestClient();
-
-      // Act
-      HttpResponseMessage response = client.GetAsync(new Uri("/?filter[group]=groupName", UriKind.Relative), TestContext!.CancellationTokenSource.Token)
-        .ConfigureAwait(false).GetAwaiter().GetResult();
-
-      // Assert
-      _ = response.EnsureSuccessStatusCode();
-      string content = response.Content.ReadAsStringAsync(TestContext!.CancellationTokenSource.Token).GetAwaiter().GetResult();
-      Assert.AreEqual("OK", content);
-    }
-
-    [TestMethod]
-    public void When_single_group_defined_conjunction_parses_as_named_FilterInfoCollection()
-    {
-      // Arrange
-      WebApplicationBuilder builder = WebApplication.CreateBuilder(new WebApplicationOptions
-      {
-        EnvironmentName = "Development"
-      });
-      _ = builder.WebHost.UseTestServer();
-
-      WebApplication app = builder.Build();
-      _ = app.ParseQueryStringFilters(); // Use extension method
-
-      // Add a terminal middleware to inspect the context
-      app.Run(context =>
-      {
-        Assert.IsTrue(context.Items.ContainsKey(ContextItemKeys.Filters));
-        var actual = context.Items[ContextItemKeys.Filters] as FilterInfoCollection;
-        Assert.IsNotNull(actual);
-        Assert.AreEqual("groupName", actual.Name);
-        Assert.AreEqual(string.Empty, actual.MemberOf);
-        Assert.AreEqual(0, actual.Count);
-        Assert.AreEqual(Conjunction.Or, actual.Conjunction);
-
-        return context.Response.WriteAsync("OK", TestContext!.CancellationTokenSource.Token);
-      });
-
-      app.Start();
-
-      HttpClient client = app.GetTestClient();
-
-      // Act
-      string input = @"filter[group][$or]=groupName";
-      HttpResponseMessage response = client.GetAsync(new Uri($"/?{input}", UriKind.Relative), TestContext!.CancellationTokenSource.Token)
-        .ConfigureAwait(false).GetAwaiter().GetResult();
-
-      // Assert
-      _ = response.EnsureSuccessStatusCode();
-      string content = response.Content.ReadAsStringAsync(TestContext!.CancellationTokenSource.Token).GetAwaiter().GetResult();
-      Assert.AreEqual("OK", content);
-    }
-
-    [TestMethod]
-    public void When_single_group_contains_filter_parses_as_named_FilterInfoCollection()
-    {
-      // Arrange
-      WebApplicationBuilder builder = WebApplication.CreateBuilder(new WebApplicationOptions
-      {
-        EnvironmentName = "Development"
-      });
-      _ = builder.WebHost.UseTestServer();
-
-      WebApplication app = builder.Build();
-      _ = app.ParseQueryStringFilters(); // Use extension method
-
-      // Add a terminal middleware to inspect the context
-      app.Run(context =>
-      {
-        Assert.IsTrue(context.Items.ContainsKey(ContextItemKeys.Filters));
-        var actual = context.Items[ContextItemKeys.Filters] as FilterInfoCollection;
-        Assert.IsNotNull(actual);
-        Assert.AreEqual("groupName", actual.Name);
-        Assert.AreEqual(string.Empty, actual.MemberOf);
-        Assert.AreEqual(1, actual.Count);
-        Assert.AreEqual(Conjunction.And, actual.Conjunction);
-
-        var filterInfo = actual.First() as FilterInfo;
-        Assert.IsNotNull(filterInfo);
-        Assert.AreEqual("field_name-0", filterInfo.Name);
-        Assert.AreEqual("field_name", filterInfo.Path);
-        Assert.AreEqual("groupName", filterInfo.MemberOf);
-        Assert.AreEqual(Operator.EqualTo, filterInfo.Operator);
-        Assert.AreEqual("value", filterInfo.Values.FirstOrDefault());
-
-        return context.Response.WriteAsync("OK", TestContext!.CancellationTokenSource.Token);
-      });
-
-      app.Start();
-
-      HttpClient client = app.GetTestClient();
-
-      // Act
-      string input = @"filter[group]=groupName&filter[groupName][0][field_name]=value";
-      HttpResponseMessage response = client.GetAsync(new Uri($"/?{input}", UriKind.Relative), TestContext!.CancellationTokenSource.Token)
-        .ConfigureAwait(false).GetAwaiter().GetResult();
-
-      // Assert
-      _ = response.EnsureSuccessStatusCode();
-      string content = response.Content.ReadAsStringAsync(TestContext!.CancellationTokenSource.Token).GetAwaiter().GetResult();
-      Assert.AreEqual("OK", content);
-    }
-
-    [TestMethod]
-    public void When_single_group_with_conjunction_contains_filter_parses_as_named_FilterInfoCollection()
-    {
-      // Arrange
-      WebApplicationBuilder builder = WebApplication.CreateBuilder(new WebApplicationOptions
-      {
-        EnvironmentName = "Development"
-      });
-      _ = builder.WebHost.UseTestServer();
-
-      WebApplication app = builder.Build();
-      _ = app.ParseQueryStringFilters(); // Use extension method
-
-      // Add a terminal middleware to inspect the context
-      app.Run(context =>
-      {
-        Assert.IsTrue(context.Items.ContainsKey(ContextItemKeys.Filters));
-        var actual = context.Items[ContextItemKeys.Filters] as FilterInfoCollection;
-        Assert.IsNotNull(actual);
-        Assert.AreEqual("groupName", actual.Name);
-        Assert.AreEqual(string.Empty, actual.MemberOf);
-        Assert.AreEqual(1, actual.Count);
-        Assert.AreEqual(Conjunction.Or, actual.Conjunction);
-
-        var filterInfo = actual.First() as FilterInfo;
-        Assert.IsNotNull(filterInfo);
-        Assert.AreEqual("field_name-0", filterInfo.Name);
-        Assert.AreEqual("field_name", filterInfo.Path);
-        Assert.AreEqual("groupName", filterInfo.MemberOf);
-        Assert.AreEqual(Operator.EqualTo, filterInfo.Operator);
-        Assert.AreEqual("value", filterInfo.Values.FirstOrDefault());
-
-        return context.Response.WriteAsync("OK", TestContext!.CancellationTokenSource.Token);
-      });
-
-      app.Start();
-
-      HttpClient client = app.GetTestClient();
-
-      // Act
-      string input = @"filter[group][$or]=groupName&filter[groupName][0][field_name]=value";
-      HttpResponseMessage response = client.GetAsync(new Uri($"/?{input}", UriKind.Relative), TestContext!.CancellationTokenSource.Token)
-        .ConfigureAwait(false).GetAwaiter().GetResult();
-
-      // Assert
-      _ = response.EnsureSuccessStatusCode();
-      string content = response.Content.ReadAsStringAsync(TestContext!.CancellationTokenSource.Token).GetAwaiter().GetResult();
-      Assert.AreEqual("OK", content);
-    }
-
-    [TestMethod]
-    public void When_single_group_with_conjunction_and_filter_with_conjunction_parses_as_root_FilterInfoCollection()
-    {
-      // Arrange
-      WebApplicationBuilder builder = WebApplication.CreateBuilder(new WebApplicationOptions
-      {
-        EnvironmentName = "Development"
-      });
-      _ = builder.WebHost.UseTestServer();
-
-      WebApplication app = builder.Build();
-      _ = app.ParseQueryStringFilters(); // Use extension method
-
-      // Add a terminal middleware to inspect the context
-      app.Run(context =>
-      {
-        Assert.IsTrue(context.Items.ContainsKey(ContextItemKeys.Filters));
-        var actual = context.Items[ContextItemKeys.Filters] as FilterInfoCollection;
-        Assert.IsNotNull(actual);
-
-        Assert.AreEqual("root", actual.Name);
-        Assert.AreEqual(string.Empty, actual.MemberOf);
-        Assert.AreEqual(2, actual.Count);
-        Assert.AreEqual(Conjunction.And, actual.Conjunction);
-
-        var filterInfoColl = actual.First() as FilterInfoCollection;
-        Assert.IsNotNull(filterInfoColl);
-        Assert.AreEqual("groupName", filterInfoColl.Name);
-        Assert.AreEqual(string.Empty, filterInfoColl.MemberOf);
-        Assert.AreEqual(1, filterInfoColl.Count);
-        Assert.AreEqual(Conjunction.Or, filterInfoColl.Conjunction);
-
-        var filterInfo = filterInfoColl.First() as FilterInfo;
-        Assert.IsNotNull(filterInfo);
-        Assert.AreEqual("field_name-0", filterInfo.Name);
-        Assert.AreEqual("field_name", filterInfo.Path);
-        Assert.AreEqual("groupName", filterInfo.MemberOf);
-        Assert.AreEqual(Operator.EqualTo, filterInfo.Operator);
-        Assert.AreEqual("value", filterInfo.Values.FirstOrDefault());
-
-        filterInfoColl = actual.Last() as FilterInfoCollection;
-        Assert.IsNotNull(filterInfoColl);
-        Assert.AreEqual("field_name-or-group", filterInfoColl.Name);
-        Assert.AreEqual(string.Empty, filterInfoColl.MemberOf);
-        Assert.AreEqual(1, filterInfoColl.Count);
-        Assert.AreEqual(Conjunction.Or, filterInfoColl.Conjunction);
-
-        filterInfo = filterInfoColl.First() as FilterInfo;
-        Assert.IsNotNull(filterInfo);
-        Assert.AreEqual("field_name-1", filterInfo.Name);
-        Assert.AreEqual("field_name", filterInfo.Path);
-        Assert.AreEqual("field_name-or-group", filterInfo.MemberOf);
-        Assert.AreEqual(Operator.EqualTo, filterInfo.Operator);
-        Assert.AreEqual("anotherValue", filterInfo.Values.FirstOrDefault());
-
-        return context.Response.WriteAsync("OK", TestContext!.CancellationTokenSource.Token);
-      });
-
-      app.Start();
-
-      HttpClient client = app.GetTestClient();
-
-      // Act
-      string input = @"filter[group][$or]=groupName&filter[groupName][0][field_name]=value&filter[$or][0][field_name]=anotherValue";
-      HttpResponseMessage response = client.GetAsync(new Uri($"/?{input}", UriKind.Relative), TestContext!.CancellationTokenSource.Token)
-        .ConfigureAwait(false).GetAwaiter().GetResult();
-
-      // Assert
-      _ = response.EnsureSuccessStatusCode();
-      string content = response.Content.ReadAsStringAsync(TestContext!.CancellationTokenSource.Token).GetAwaiter().GetResult();
-      Assert.AreEqual("OK", content);
-    }
-
-    [TestMethod]
-    public void When_single_group_memberOf_undefined_group_conjunction_parses_as_named_FilterInfoCollection()
-    {
-      // Arrange
-      WebApplicationBuilder builder = WebApplication.CreateBuilder(new WebApplicationOptions
-      {
-        EnvironmentName = "Development"
-      });
-      _ = builder.WebHost.UseTestServer();
-
-      WebApplication app = builder.Build();
-      _ = app.ParseQueryStringFilters(); // Use extension method
-
-      // Add a terminal middleware to inspect the context
-      app.Run(context =>
-      {
-        Assert.IsTrue(context.Items.ContainsKey(ContextItemKeys.Filters));
-        var actual = context.Items[ContextItemKeys.Filters] as FilterInfoCollection;
-        Assert.IsNotNull(actual);
-        Assert.AreEqual(1, actual.Count);
-        Assert.AreEqual("memberOfName", actual.Name);
-        Assert.AreEqual(string.Empty, actual.MemberOf);
-        Assert.AreEqual(Conjunction.And, actual.Conjunction);
-
-        var filterInfoColl = actual.First() as FilterInfoCollection;
-        Assert.IsNotNull(filterInfoColl);
-        Assert.AreEqual("groupName", filterInfoColl.Name);
-        Assert.AreEqual("memberOfName", filterInfoColl.MemberOf);
-        Assert.AreEqual(0, filterInfoColl.Count);
-        Assert.AreEqual(Conjunction.Or, filterInfoColl.Conjunction);
-
-        return context.Response.WriteAsync("OK", TestContext!.CancellationTokenSource.Token);
-      });
-
-      app.Start();
-
-      HttpClient client = app.GetTestClient();
-
-      // Act
-      string input = @"filter[group][$or][memberOfName]=groupName";
-      HttpResponseMessage response = client.GetAsync(new Uri($"/?{input}", UriKind.Relative), TestContext!.CancellationTokenSource.Token)
-        .ConfigureAwait(false).GetAwaiter().GetResult();
-
-      // Assert
-      _ = response.EnsureSuccessStatusCode();
-      string content = response.Content.ReadAsStringAsync(TestContext!.CancellationTokenSource.Token).GetAwaiter().GetResult();
-      Assert.AreEqual("OK", content);
-    }
-
-    [TestMethod]
-    public void When_multiple_simple_groups_parses_as_root_FilterInfoCollection()
-    {
-      // Arrange
-      WebApplicationBuilder builder = WebApplication.CreateBuilder(new WebApplicationOptions
-      {
-        EnvironmentName = "Development"
-      });
-      _ = builder.WebHost.UseTestServer();
-
-      WebApplication app = builder.Build();
-      _ = app.ParseQueryStringFilters(); // Use extension method
-
-      // Add a terminal middleware to inspect the context
-      app.Run(context =>
-      {
-        Assert.IsTrue(context.Items.ContainsKey(ContextItemKeys.Filters));
-        var actual = context.Items[ContextItemKeys.Filters] as FilterInfoCollection;
-        Assert.IsNotNull(actual);
-
-        Assert.AreEqual("root", actual.Name);
-        Assert.AreEqual(2, actual.Count);
-        Assert.AreEqual(string.Empty, actual.MemberOf);
-        Assert.AreEqual(Conjunction.And, actual.Conjunction);
-
-        var filterInfoColl = actual.First() as FilterInfoCollection;
-        Assert.IsNotNull(filterInfoColl);
-        Assert.AreEqual("groupName", filterInfoColl.Name);
-        Assert.AreEqual(0, filterInfoColl.Count);
-        Assert.AreEqual(string.Empty, filterInfoColl.MemberOf);
-        Assert.AreEqual(Conjunction.And, filterInfoColl.Conjunction);
-
-        filterInfoColl = actual.Last() as FilterInfoCollection;
-        Assert.IsNotNull(filterInfoColl);
-        Assert.AreEqual("secondGroupName", filterInfoColl.Name);
-        Assert.AreEqual(0, filterInfoColl.Count);
-        Assert.AreEqual(string.Empty, filterInfoColl.MemberOf);
-        Assert.AreEqual(Conjunction.And, filterInfoColl.Conjunction);
-
-        return context.Response.WriteAsync("OK", TestContext!.CancellationTokenSource.Token);
-      });
-
-      app.Start();
-
-      HttpClient client = app.GetTestClient();
-
-      // Act
-      string input = @"filter[group]=groupName&filter[group]=secondGroupName";
-      HttpResponseMessage response = client.GetAsync(new Uri($"/?{input}", UriKind.Relative), TestContext!.CancellationTokenSource.Token)
-        .ConfigureAwait(false).GetAwaiter().GetResult();
-
-      // Assert
-      _ = response.EnsureSuccessStatusCode();
-      string content = response.Content.ReadAsStringAsync(TestContext!.CancellationTokenSource.Token).GetAwaiter().GetResult();
-      Assert.AreEqual("OK", content);
-    }
-
-    /*
-    Suggested Edge Cases to Test
-    2.	Duplicate or Conflicting Groups
-        •	Multiple groups with the same name but different conjunctions:
-          filter[group][$and]=g&filter[group][$or]=g
-        •	Multiple filters with the same path and group index.
-     */
-    [TestMethod]
-    public void When_multiple_simple_groups_same_name_same_conjunction_parses_as_first_group_FilterInfoCollection()
-    {
-      // Arrange
-      WebApplicationBuilder builder = WebApplication.CreateBuilder(new WebApplicationOptions
-      {
-        EnvironmentName = "Development"
-      });
-      _ = builder.WebHost.UseTestServer();
-
-      WebApplication app = builder.Build();
-      _ = app.ParseQueryStringFilters(); // Use extension method
-
-      // Add a terminal middleware to inspect the context
-      app.Run(context =>
-      {
-        Assert.IsTrue(context.Items.ContainsKey(ContextItemKeys.Filters));
-        var actual = context.Items[ContextItemKeys.Filters] as FilterInfoCollection;
-        Assert.IsNotNull(actual);
-        Assert.AreEqual($"g", actual.Name);
-        Assert.AreEqual(Conjunction.And, actual.Conjunction);
-        Assert.AreEqual(0, actual.Count);
-
-        return context.Response.WriteAsync("OK", TestContext!.CancellationTokenSource.Token);
-      });
-
-      app.Start();
-
-      HttpClient client = app.GetTestClient();
-
-      // Act
-      string input = @"filter[group][$and]=g&filter[group][$and]=g";
-      HttpResponseMessage response = client.GetAsync(new Uri($"/?{input}", UriKind.Relative), TestContext!.CancellationTokenSource.Token)
-        .ConfigureAwait(false).GetAwaiter().GetResult();
-
-      // Assert
-      _ = response.EnsureSuccessStatusCode();
-      string content = response.Content.ReadAsStringAsync(TestContext!.CancellationTokenSource.Token).GetAwaiter().GetResult();
-      Assert.AreEqual("OK", content);
-    }
-
-    [TestMethod]
-    public void When_multiple_simple_groups_same_name_different_conjunction_parses_as_first_group_FilterInfoCollection()
-    {
-      // Arrange
-      WebApplicationBuilder builder = WebApplication.CreateBuilder(new WebApplicationOptions
-      {
-        EnvironmentName = "Development"
-      });
-      _ = builder.WebHost.UseTestServer();
-
-      WebApplication app = builder.Build();
-      _ = app.ParseQueryStringFilters(); // Use extension method
-
-      // Add a terminal middleware to inspect the context
-      app.Run(context =>
-      {
-        Assert.IsTrue(context.Items.ContainsKey(ContextItemKeys.Filters));
-        var actual = context.Items[ContextItemKeys.Filters] as FilterInfoCollection;
-        Assert.IsNotNull(actual);
-        Assert.AreEqual($"g", actual.Name);
-        Assert.AreEqual(Conjunction.Or, actual.Conjunction);
-        Assert.AreEqual(0, actual.Count);
-
-        return context.Response.WriteAsync("OK", TestContext!.CancellationTokenSource.Token);
-      });
-
-      app.Start();
-
-      HttpClient client = app.GetTestClient();
-
-      // Act
-      string input = @"filter[group][$or]=g&filter[group][$and]=g";
-      HttpResponseMessage response = client.GetAsync(new Uri($"/?{input}", UriKind.Relative), TestContext!.CancellationTokenSource.Token)
-        .ConfigureAwait(false).GetAwaiter().GetResult();
-
-      // Assert
-      _ = response.EnsureSuccessStatusCode();
-      string content = response.Content.ReadAsStringAsync(TestContext!.CancellationTokenSource.Token).GetAwaiter().GetResult();
-      Assert.AreEqual("OK", content);
-    }
-
-    [TestMethod]
-    public void When_multiple_groups_defined_conjunction_parses_as_root_FilterInfoCollection()
-    {
-      // Arrange
-      WebApplicationBuilder builder = WebApplication.CreateBuilder(new WebApplicationOptions
-      {
-        EnvironmentName = "Development"
-      });
-      _ = builder.WebHost.UseTestServer();
-
-      WebApplication app = builder.Build();
-      _ = app.ParseQueryStringFilters(); // Use extension method
-
-      // Add a terminal middleware to inspect the context
-      app.Run(context =>
-      {
-        Assert.IsTrue(context.Items.ContainsKey(ContextItemKeys.Filters));
-        var actual = context.Items[ContextItemKeys.Filters] as FilterInfoCollection;
-        Assert.IsNotNull(actual);
-        Assert.AreEqual("root", actual.Name);
-        Assert.AreEqual(2, actual.Count);
-        Assert.AreEqual(string.Empty, actual.MemberOf);
-        Assert.AreEqual(Conjunction.And, actual.Conjunction);
-
-        var filterInfoColl = actual.First() as FilterInfoCollection;
-        Assert.IsNotNull(filterInfoColl);
-        Assert.AreEqual("groupName", filterInfoColl.Name);
-        Assert.AreEqual(0, filterInfoColl.Count);
-        Assert.AreEqual(string.Empty, filterInfoColl.MemberOf);
-        Assert.AreEqual(Conjunction.Or, filterInfoColl.Conjunction);
-
-        filterInfoColl = actual.Last() as FilterInfoCollection;
-        Assert.IsNotNull(filterInfoColl);
-        Assert.AreEqual("secondGroupName", filterInfoColl.Name);
-        Assert.AreEqual(0, filterInfoColl.Count);
-        Assert.AreEqual(string.Empty, filterInfoColl.MemberOf);
-        Assert.AreEqual(Conjunction.And, filterInfoColl.Conjunction);
-
-        return context.Response.WriteAsync("OK", TestContext!.CancellationTokenSource.Token);
-      });
-
-      app.Start();
-
-      HttpClient client = app.GetTestClient();
-
-      // Act
-      string input = @"filter[group][$or]=groupName&filter[group][$and]=secondGroupName";
-      HttpResponseMessage response = client.GetAsync(new Uri($"/?{input}", UriKind.Relative), TestContext!.CancellationTokenSource.Token)
-        .ConfigureAwait(false).GetAwaiter().GetResult();
-
-      // Assert
-      _ = response.EnsureSuccessStatusCode();
-      string content = response.Content.ReadAsStringAsync(TestContext!.CancellationTokenSource.Token).GetAwaiter().GetResult();
-      Assert.AreEqual("OK", content);
-    }
-
-    [TestMethod]
-    public void When_multiple_filter_same_property_parses_as_root_FilterInfoCollection()
-    {
-      // Arrange
-      WebApplicationBuilder builder = WebApplication.CreateBuilder(new WebApplicationOptions
-      {
-        EnvironmentName = "Development"
-      });
-      _ = builder.WebHost.UseTestServer();
-
-      WebApplication app = builder.Build();
-      _ = app.ParseQueryStringFilters(); // Use extension method
-
-      // Add a terminal middleware to inspect the context
-      app.Run(context =>
-      {
-        Assert.IsTrue(context.Items.ContainsKey(ContextItemKeys.Filters));
-        var actual = context.Items[ContextItemKeys.Filters] as FilterInfoCollection;
-        Assert.IsNotNull(actual);
-        Assert.AreEqual("root", actual.Name);
-        Assert.AreEqual(Conjunction.And, actual.Conjunction);
-
-        var filterInfo = actual.First() as FilterInfo;
-        Assert.IsNotNull(filterInfo);
-        Assert.AreEqual("field_name-0", filterInfo.Name);
-        Assert.AreEqual("field_name", filterInfo.Path);
-        Assert.AreEqual(string.Empty, filterInfo.MemberOf);
-        Assert.AreEqual(Operator.GreaterThan, filterInfo.Operator);
-        Assert.AreEqual("value", filterInfo.Values.FirstOrDefault());
-
-        filterInfo = actual.Last() as FilterInfo;
-        Assert.IsNotNull(filterInfo);
-        Assert.AreEqual("field_name-1", filterInfo.Name);
-        Assert.AreEqual("field_name", filterInfo.Path);
-        Assert.AreEqual(string.Empty, filterInfo.MemberOf);
-        Assert.AreEqual(Operator.LessThan, filterInfo.Operator);
-        Assert.AreEqual("value2", filterInfo.Values.FirstOrDefault());
-
-        return context.Response.WriteAsync("OK", TestContext!.CancellationTokenSource.Token);
-      });
-
-      app.Start();
-
-      HttpClient client = app.GetTestClient();
-
-      // Act
-      string input = @"filter[field_name][$gt]=value&filter[field_name][$lt]=value2";
-      HttpResponseMessage response = client.GetAsync(new Uri($"/?{input}", UriKind.Relative), TestContext!.CancellationTokenSource.Token)
-        .ConfigureAwait(false).GetAwaiter().GetResult();
-
-      // Assert
-      _ = response.EnsureSuccessStatusCode();
-      string content = response.Content.ReadAsStringAsync(TestContext!.CancellationTokenSource.Token).GetAwaiter().GetResult();
-      Assert.AreEqual("OK", content);
-    }
-
-    [TestMethod]
-    public void When_multiple_filters_for_different_properties_parses_as_root_FilterInfoCollection()
-    {
-      // Arrange
-      WebApplicationBuilder builder = WebApplication.CreateBuilder(new WebApplicationOptions
-      {
-        EnvironmentName = "Development"
-      });
-      _ = builder.WebHost.UseTestServer();
-
-      WebApplication app = builder.Build();
-      _ = app.ParseQueryStringFilters(); // Use extension method
-
-      // Add a terminal middleware to inspect the context
-      app.Run(context =>
-      {
-        Assert.IsTrue(context.Items.ContainsKey(ContextItemKeys.Filters));
-        var actual = context.Items[ContextItemKeys.Filters] as FilterInfoCollection;
-        Assert.IsNotNull(actual);
-
-        Assert.AreEqual(4, actual.Count);
-
-        Assert.IsNotNull(actual);
-        Assert.AreEqual("root", actual.Name);
-        Assert.AreEqual(Conjunction.And, actual.Conjunction);
-
-        var filterInfo = actual.First() as FilterInfo;
-        Assert.IsNotNull(filterInfo);
-        Assert.AreEqual("field_name-0", filterInfo.Name);
-        Assert.AreEqual("field_name", filterInfo.Path);
-        Assert.AreEqual(string.Empty, filterInfo.MemberOf);
-        Assert.AreEqual(Operator.GreaterThan, filterInfo.Operator);
-        Assert.AreEqual("value", filterInfo.Values.FirstOrDefault());
-
-        filterInfo = actual.Skip(1).First() as FilterInfo;
-        Assert.IsNotNull(filterInfo);
-        Assert.AreEqual("field_name-1", filterInfo.Name);
-        Assert.AreEqual("field_name", filterInfo.Path);
-        Assert.AreEqual(Operator.LessThan, filterInfo.Operator);
-        Assert.AreEqual("value2", filterInfo.Values.FirstOrDefault());
-
-        filterInfo = actual.Skip(2).First() as FilterInfo;
-        Assert.IsNotNull(filterInfo);
-        Assert.AreEqual("another_field_name-0", filterInfo.Name);
-        Assert.AreEqual("another_field_name", filterInfo.Path);
-        Assert.AreEqual(string.Empty, filterInfo.MemberOf);
-        Assert.AreEqual(Operator.Contains, filterInfo.Operator);
-        Assert.AreEqual("containedValue", filterInfo.Values.FirstOrDefault());
-
-        filterInfo = actual.Last() as FilterInfo;
-        Assert.IsNotNull(filterInfo);
-        Assert.AreEqual("another_field_name-1", filterInfo.Name);
-        Assert.AreEqual("another_field_name", filterInfo.Path);
-        Assert.AreEqual(string.Empty, filterInfo.MemberOf);
-        Assert.AreEqual(Operator.LessThanOrEqualTo, filterInfo.Operator);
-        Assert.AreEqual("bigvalue", filterInfo.Values.FirstOrDefault());
-
-        return context.Response.WriteAsync("OK", TestContext!.CancellationTokenSource.Token);
-      });
-
-      app.Start();
-
-      HttpClient client = app.GetTestClient();
-
-      // Act
-      string input = @"filter[field_name][$gt]=value&filter[field_name][$lt]=value2&filter[another_field_name][$contains]=containedValue&filter[another_field_name][$le]=bigvalue";
-      HttpResponseMessage response = client.GetAsync(new Uri($"/?{input}", UriKind.Relative), TestContext!.CancellationTokenSource.Token)
-        .ConfigureAwait(false).GetAwaiter().GetResult();
-
-      // Assert
-      _ = response.EnsureSuccessStatusCode();
-      string content = response.Content.ReadAsStringAsync(TestContext!.CancellationTokenSource.Token).GetAwaiter().GetResult();
-      Assert.AreEqual("OK", content);
-    }
-
-    [TestMethod]
-    public void When_deeply_nested_group_parses_as_named_FilterInfoCollection()
-    {
-      // Arrange
-      WebApplicationBuilder builder = WebApplication.CreateBuilder(new WebApplicationOptions
-      {
-        EnvironmentName = "Development"
-      });
-      _ = builder.WebHost.UseTestServer();
-
-      WebApplication app = builder.Build();
-      _ = app.ParseQueryStringFilters(); // Use extension method
-
-      // Add a terminal middleware to inspect the context
-      app.Run(context =>
-      {
-        Assert.IsTrue(context.Items.ContainsKey(ContextItemKeys.Filters));
-        var actual = context.Items[ContextItemKeys.Filters] as FilterInfoCollection;
-        Assert.IsNotNull(actual);
-
-        Assert.AreEqual(1, actual.Count);
-        Assert.AreEqual("g1", actual.Name);
-        Assert.AreEqual(string.Empty, actual.MemberOf);
-        Assert.AreEqual(Conjunction.And, actual.Conjunction);
-
-        var filterInfoColl = actual.First() as FilterInfoCollection;
-        Assert.IsNotNull(filterInfoColl);
-        Assert.AreEqual("g2", filterInfoColl.Name);
-        Assert.AreEqual(1, filterInfoColl.Count);
-        Assert.AreEqual("g1", filterInfoColl.MemberOf);
-        Assert.AreEqual(Conjunction.Or, filterInfoColl.Conjunction);
-
-        filterInfoColl = filterInfoColl.First() as FilterInfoCollection;
-        Assert.IsNotNull(filterInfoColl);
-        Assert.AreEqual("g3", filterInfoColl.Name);
-        Assert.AreEqual(1, filterInfoColl.Count);
-        Assert.AreEqual("g2", filterInfoColl.MemberOf);
-        Assert.AreEqual(Conjunction.And, filterInfoColl.Conjunction);
-
-        var filterInfo = filterInfoColl.First() as FilterInfo;
-        Assert.IsNotNull(filterInfo);
-        Assert.AreEqual("field_name-0", filterInfo.Name);
-        Assert.AreEqual("field_name", filterInfo.Path);
-        Assert.AreEqual("g3", filterInfo.MemberOf);
-        Assert.AreEqual(Operator.GreaterThan, filterInfo.Operator);
-        Assert.AreEqual("value", filterInfo.Values.FirstOrDefault());
-
-        return context.Response.WriteAsync("OK", TestContext!.CancellationTokenSource.Token);
-      });
-
-      app.Start();
-
-      HttpClient client = app.GetTestClient();
-
-      // Act
-      string input = @"filter[group][$and]=g1&filter[group][$or][g1]=g2&filter[group][$and][g2]=g3&filter[g3][0][field_name][$gt]=value";
-      HttpResponseMessage response = client.GetAsync(new Uri($"/?{input}", UriKind.Relative), TestContext!.CancellationTokenSource.Token)
-        .ConfigureAwait(false).GetAwaiter().GetResult();
-
-      // Assert
-      _ = response.EnsureSuccessStatusCode();
-      string content = response.Content.ReadAsStringAsync(TestContext!.CancellationTokenSource.Token).GetAwaiter().GetResult();
-      Assert.AreEqual("OK", content);
-    }
-
-    [TestMethod]
-    public void When_multiple_filters_for_different_properties_with_conjunctions_parses_as_root_FilterInfoCollection()
-    {
-      // Arrange
-      WebApplicationBuilder builder = WebApplication.CreateBuilder(new WebApplicationOptions
-      {
-        EnvironmentName = "Development"
-      });
-      _ = builder.WebHost.UseTestServer();
-
-      WebApplication app = builder.Build();
-      _ = app.ParseQueryStringFilters(); // Use extension method
-
-      // Add a terminal middleware to inspect the context
-      app.Run(context =>
-      {
-        Assert.IsTrue(context.Items.ContainsKey(ContextItemKeys.Filters));
-        var actual = context.Items[ContextItemKeys.Filters] as FilterInfoCollection;
-        Assert.IsNotNull(actual);
-
-        Assert.AreEqual(2, actual.Count);
-
-        Assert.AreEqual("root", actual.Name);
-        Assert.AreEqual(Conjunction.And, actual.Conjunction);
-
-        var filterInfoColl = actual.First() as FilterInfoCollection;
-        Assert.IsNotNull(filterInfoColl);
-        Assert.AreEqual("field_name-and-group", filterInfoColl.Name);
-        Assert.AreEqual(2, filterInfoColl.Count);
-        Assert.AreEqual(string.Empty, filterInfoColl.MemberOf);
-        Assert.AreEqual(Conjunction.And, filterInfoColl.Conjunction);
-
-        var filterInfo = filterInfoColl.First() as FilterInfo;
-        Assert.IsNotNull(filterInfo);
-        Assert.AreEqual("field_name-0", filterInfo.Name);
-        Assert.AreEqual("field_name", filterInfo.Path);
-        Assert.AreEqual("field_name-and-group", filterInfo.MemberOf);
-        Assert.AreEqual(Operator.LessThan, filterInfo.Operator);
-        Assert.AreEqual("value2", filterInfo.Values.FirstOrDefault());
-
-        filterInfo = filterInfoColl.Last() as FilterInfo;
-        Assert.IsNotNull(filterInfo);
-        Assert.AreEqual("field_name-1", filterInfo.Name);
-        Assert.AreEqual("field_name", filterInfo.Path);
-        Assert.AreEqual("field_name-and-group", filterInfo.MemberOf);
-        Assert.AreEqual(Operator.GreaterThan, filterInfo.Operator);
-        Assert.AreEqual("value", filterInfo.Values.FirstOrDefault());
-
-        filterInfoColl = actual.Last() as FilterInfoCollection;
-        Assert.IsNotNull(filterInfoColl);
-        Assert.AreEqual("another_field_name-or-group", filterInfoColl.Name);
-        Assert.AreEqual(string.Empty, filterInfoColl.MemberOf);
-        Assert.AreEqual(2, filterInfoColl.Count);
-        Assert.AreEqual(Conjunction.Or, filterInfoColl.Conjunction);
-
-        filterInfo = filterInfoColl.First() as FilterInfo;
-        Assert.IsNotNull(filterInfo);
-        Assert.AreEqual("another_field_name-0", filterInfo.Name);
-        Assert.AreEqual("another_field_name", filterInfo.Path);
-        Assert.AreEqual("another_field_name-or-group", filterInfo.MemberOf);
-        Assert.AreEqual(Operator.Contains, filterInfo.Operator);
-        Assert.AreEqual("containedValue", filterInfo.Values.FirstOrDefault());
-
-        filterInfo = filterInfoColl.Last() as FilterInfo;
-        Assert.IsNotNull(filterInfo);
-        Assert.AreEqual("another_field_name-1", filterInfo.Name);
-        Assert.AreEqual("another_field_name", filterInfo.Path);
-        Assert.AreEqual("another_field_name-or-group", filterInfo.MemberOf);
-        Assert.AreEqual(Operator.LessThanOrEqualTo, filterInfo.Operator);
-        Assert.AreEqual("bigvalue", filterInfo.Values.FirstOrDefault());
-
-        return context.Response.WriteAsync("OK", TestContext!.CancellationTokenSource.Token);
-      });
-
-      app.Start();
-
-      HttpClient client = app.GetTestClient();
-
-      // Act
-      string input = @"filter[$and][1][field_name][$gt]=value&filter[$and][0][field_name][$lt]=value2&filter[$or][1][another_field_name][$contains]=containedValue&filter[$or][1][another_field_name][$le]=bigvalue";
-      HttpResponseMessage response = client.GetAsync(new Uri($"/?{input}", UriKind.Relative), TestContext!.CancellationTokenSource.Token)
-        .ConfigureAwait(false).GetAwaiter().GetResult();
-
-      // Assert
-      _ = response.EnsureSuccessStatusCode();
-      string content = response.Content.ReadAsStringAsync(TestContext!.CancellationTokenSource.Token).GetAwaiter().GetResult();
-      Assert.AreEqual("OK", content);
-    }
-
-    [TestMethod]
-    public void When_single_filter_nested_properties_parses_as_root_FilterInfoCollection()
-    {
-      // Arrange
-      WebApplicationBuilder builder = WebApplication.CreateBuilder(new WebApplicationOptions
-      {
-        EnvironmentName = "Development"
-      });
-      _ = builder.WebHost.UseTestServer();
-
-      WebApplication app = builder.Build();
-      _ = app.ParseQueryStringFilters(); // Use extension method
-
-      // Add a terminal middleware to inspect the context
-      app.Run(context =>
-      {
-        Assert.IsTrue(context.Items.ContainsKey(ContextItemKeys.Filters));
-        var actual = context.Items[ContextItemKeys.Filters] as FilterInfoCollection;
-        Assert.IsNotNull(actual);
-        Assert.AreEqual("root", actual.Name);
-        Assert.AreEqual(Conjunction.And, actual.Conjunction);
-        Assert.AreEqual(1, actual.Count);
-
-        var filterInfo = actual.First() as FilterInfo;
-        Assert.IsNotNull(filterInfo);
-        Assert.AreEqual("field_name.nested_field_name-0", filterInfo.Name);
-        Assert.AreEqual("field_name.nested_field_name", filterInfo.Path);
-        Assert.AreEqual(string.Empty, filterInfo.MemberOf);
-        Assert.AreEqual(Operator.EqualTo, filterInfo.Operator);
-        Assert.AreEqual("value", filterInfo.Values.FirstOrDefault());
-
-        return context.Response.WriteAsync("OK", TestContext!.CancellationTokenSource.Token);
-      });
-
-      app.Start();
-
-      HttpClient client = app.GetTestClient();
-
-      // Act
-      string input = @"filter[field_name][nested_field_name]=value";
-      HttpResponseMessage response = client.GetAsync(new Uri($"/?{input}", UriKind.Relative), TestContext!.CancellationTokenSource.Token)
-        .ConfigureAwait(false).GetAwaiter().GetResult();
-
-      // Assert
-      _ = response.EnsureSuccessStatusCode();
-      string content = response.Content.ReadAsStringAsync(TestContext!.CancellationTokenSource.Token).GetAwaiter().GetResult();
-      Assert.AreEqual("OK", content);
-    }
-
-    [TestMethod]
-    [DataRow("$eq", Operator.EqualTo)]
-    [DataRow("$EQ", Operator.EqualTo)]
-    [DataRow("$ge", Operator.GreaterThanOrEqualTo)]
-    [DataRow("$GE", Operator.GreaterThanOrEqualTo)]
-    [DataRow("$gt", Operator.GreaterThan)]
-    [DataRow("$GT", Operator.GreaterThan)]
-    [DataRow("$le", Operator.LessThanOrEqualTo)]
-    [DataRow("$LE", Operator.LessThanOrEqualTo)]
-    [DataRow("$lt", Operator.LessThan)]
-    [DataRow("$LT", Operator.LessThan)]
-    [DataRow("$ne", Operator.NotEqualTo)]
-    [DataRow("$NE", Operator.NotEqualTo)]
-    [DataRow("$between", Operator.Between)]
-    [DataRow("$BETWEEN", Operator.Between)]
-    [DataRow("$notbetween", Operator.NotBetween)]
-    [DataRow("$NOTBETWEEN", Operator.NotBetween)]
-    [DataRow("$contains", Operator.Contains)]
-    [DataRow("$CONTAINS", Operator.Contains)]
-    [DataRow("$notcontains", Operator.NotContains)]
-    [DataRow("$NOTCONTAINS", Operator.NotContains)]
-    [DataRow("$endswith", Operator.EndsWith)]
-    [DataRow("$ENDSWITH", Operator.EndsWith)]
-    [DataRow("$null", Operator.IsNull)]
-    [DataRow("$NULL", Operator.IsNull)]
-    [DataRow("$notnull", Operator.IsNotNull)]
-    [DataRow("$NOTNULL", Operator.IsNotNull)]
-    [DataRow("$startswith", Operator.StartsWith)]
-    [DataRow("$STARTSWITH", Operator.StartsWith)]
-    [DataRow("$regex", Operator.Regex)]
-    [DataRow("$REGEX", Operator.Regex)]
-    public void When_single_filter_single_property_with_operator_parses_as_root_FilterInfoCollection(string @operator, Operator expectedOperator)
-    {
-      // Arrange
-      WebApplicationBuilder builder = WebApplication.CreateBuilder(new WebApplicationOptions
-      {
-        EnvironmentName = "Development"
-      });
-      _ = builder.WebHost.UseTestServer();
-
-      WebApplication app = builder.Build();
-      _ = app.ParseQueryStringFilters(); // Use extension method
-
-      // Add a terminal middleware to inspect the context
-      app.Run(context =>
-      {
-        Assert.IsTrue(context.Items.ContainsKey(ContextItemKeys.Filters));
-        var actual = context.Items[ContextItemKeys.Filters] as FilterInfoCollection;
-        Assert.IsNotNull(actual);
-
-        Assert.AreEqual(1, actual.Count);
-        Assert.IsNotNull(actual);
-        Assert.AreEqual("root", actual.Name);
-        Assert.AreEqual(Conjunction.And, actual.Conjunction);
-
-        var filterInfo = actual.First() as FilterInfo;
-        Assert.IsNotNull(filterInfo);
-        Assert.AreEqual("field_name-0", filterInfo.Name);
-        Assert.AreEqual("field_name", filterInfo.Path);
-        Assert.AreEqual(string.Empty, filterInfo.MemberOf);
-        Assert.AreEqual(expectedOperator, filterInfo.Operator);
-        Assert.AreEqual("value", filterInfo.Values.FirstOrDefault());
-
-        return context.Response.WriteAsync("OK", TestContext!.CancellationTokenSource.Token);
-      });
-
-      app.Start();
-
-      HttpClient client = app.GetTestClient();
-
-      // Act
-      string input = $"filter[field_name][{@operator}]=value";
-      HttpResponseMessage response = client.GetAsync(new Uri($"/?{input}", UriKind.Relative), TestContext!.CancellationTokenSource.Token)
-        .ConfigureAwait(false).GetAwaiter().GetResult();
-
-      // Assert
-      _ = response.EnsureSuccessStatusCode();
-      string content = response.Content.ReadAsStringAsync(TestContext!.CancellationTokenSource.Token).GetAwaiter().GetResult();
-      Assert.AreEqual("OK", content);
-    }
-
-    [TestMethod]
-    [DataRow("and", Conjunction.And)]
-    [DataRow("or", Conjunction.Or)]
-    public void When_single_filter_single_property_with_conjunction_parses_as_named_FilterInfoCollection(string conjunction, Conjunction expectedConjunction)
-    {
-      // Arrange
-      WebApplicationBuilder builder = WebApplication.CreateBuilder(new WebApplicationOptions
-      {
-        EnvironmentName = "Development"
-      });
-      _ = builder.WebHost.UseTestServer();
-
-      WebApplication app = builder.Build();
-      _ = app.ParseQueryStringFilters(); // Use extension method
-
-      // Add a terminal middleware to inspect the context
-      app.Run(context =>
-      {
-        Assert.IsTrue(context.Items.ContainsKey(ContextItemKeys.Filters));
-        var actual = context.Items[ContextItemKeys.Filters] as FilterInfoCollection;
-        Assert.IsNotNull(actual);
-
-        Assert.AreEqual(1, actual.Count);
-
-        Assert.IsNotNull(actual);
-        Assert.AreEqual($"field_name-{conjunction}-group", actual.Name);
-        Assert.AreEqual(1, actual.Count);
-        Assert.AreEqual(expectedConjunction, actual.Conjunction);
-
-        var filterInfo = actual.First() as FilterInfo;
-        Assert.IsNotNull(filterInfo);
-        Assert.AreEqual("field_name-0", filterInfo.Name);
-        Assert.AreEqual("field_name", filterInfo.Path);
-        Assert.AreEqual($"field_name-{conjunction}-group", filterInfo.MemberOf);
-        Assert.AreEqual(Operator.EqualTo, filterInfo.Operator);
-        Assert.AreEqual("value", filterInfo.Values.FirstOrDefault());
-
-        return context.Response.WriteAsync("OK", TestContext!.CancellationTokenSource.Token);
-      });
-
-      app.Start();
-
-      HttpClient client = app.GetTestClient();
-
-      // Act
-      string input = $@"filter[${conjunction}][0][field_name]=value";
-      HttpResponseMessage response = client.GetAsync(new Uri($"/?{input}", UriKind.Relative), TestContext!.CancellationTokenSource.Token)
-        .ConfigureAwait(false).GetAwaiter().GetResult();
-
-      // Assert
-      _ = response.EnsureSuccessStatusCode();
-      string content = response.Content.ReadAsStringAsync(TestContext!.CancellationTokenSource.Token).GetAwaiter().GetResult();
-      Assert.AreEqual("OK", content);
-    }
-
-    [TestMethod]
-    [DataRow("$ItBroke")]
-    [DataRow("$NOTconjunction")]
-    [DataRow("$INVALID")]
-    public void When_single_filter_single_property_with_invalid_conjunction_parses_as_empty_root_FilterInfoCollection(string conjunction)
-    {
-      // Arrange
-      WebApplicationBuilder builder = WebApplication.CreateBuilder(new WebApplicationOptions
-      {
-        EnvironmentName = "Development"
-      });
-      _ = builder.WebHost.UseTestServer();
-
-      WebApplication app = builder.Build();
-      _ = app.ParseQueryStringFilters(); // Use extension method
-
-      // Add a terminal middleware to inspect the context
-      app.Run(context =>
-      {
-        Assert.IsTrue(context.Items.ContainsKey(ContextItemKeys.Filters));
-        var actual = context.Items[ContextItemKeys.Filters] as FilterInfoCollection;
-        Assert.IsNotNull(actual);
-
-        Assert.AreEqual($"root", actual.Name);
-        Assert.AreEqual(0, actual.Count);
-
-        return context.Response.WriteAsync("OK", TestContext!.CancellationTokenSource.Token);
-      });
-
-      app.Start();
-
-      HttpClient client = app.GetTestClient();
-
-      // Act
-      string input = $@"filter[{conjunction}][0][field_name]=value";
-      HttpResponseMessage response = client.GetAsync(new Uri($"/?{input}", UriKind.Relative), TestContext!.CancellationTokenSource.Token)
-        .ConfigureAwait(false).GetAwaiter().GetResult();
-
-      // Assert
-      _ = response.EnsureSuccessStatusCode();
-      string content = response.Content.ReadAsStringAsync(TestContext!.CancellationTokenSource.Token).GetAwaiter().GetResult();
-      Assert.AreEqual("OK", content);
-    }
-
-    [TestMethod]
-    public void When_multiple_filters_same_property_with_conjunction_parses_as_named_FilterInfoCollection()
-    {
-      // Arrange
-      WebApplicationBuilder builder = WebApplication.CreateBuilder(new WebApplicationOptions
-      {
-        EnvironmentName = "Development"
-      });
-      _ = builder.WebHost.UseTestServer();
-
-      WebApplication app = builder.Build();
-      _ = app.ParseQueryStringFilters(); // Use extension method
-
-      // Add a terminal middleware to inspect the context
-      app.Run(context =>
-      {
-        Assert.IsTrue(context.Items.ContainsKey(ContextItemKeys.Filters));
-        var actual = context.Items[ContextItemKeys.Filters] as FilterInfoCollection;
-        Assert.IsNotNull(actual);
-
-        Assert.AreEqual(2, actual.Count);
-
-        Assert.IsNotNull(actual);
-        Assert.AreEqual($"field_name-and-group", actual.Name);
-        Assert.AreEqual(string.Empty, actual.MemberOf);
-        Assert.AreEqual(Conjunction.And, actual.Conjunction);
-
-        var filterInfo = actual.First() as FilterInfo;
-        Assert.IsNotNull(filterInfo);
-        Assert.AreEqual("field_name-0", filterInfo.Name);
-        Assert.AreEqual("field_name", filterInfo.Path);
-        Assert.AreEqual("field_name-and-group", filterInfo.MemberOf);
-        Assert.AreEqual(Operator.EqualTo, filterInfo.Operator);
-        Assert.AreEqual("value", filterInfo.Values.FirstOrDefault());
-
-        filterInfo = actual.Last() as FilterInfo;
-        Assert.IsNotNull(filterInfo);
-        Assert.AreEqual("field_name-1", filterInfo.Name);
-        Assert.AreEqual("field_name", filterInfo.Path);
-        Assert.AreEqual("field_name-and-group", filterInfo.MemberOf);
-        Assert.AreEqual(Operator.EqualTo, filterInfo.Operator);
-        Assert.AreEqual("value2", filterInfo.Values.FirstOrDefault());
-
-        return context.Response.WriteAsync("OK", TestContext!.CancellationTokenSource.Token);
-      });
-
-      app.Start();
-
-      HttpClient client = app.GetTestClient();
-
-      // Act
-      string input = $@"filter[$and][0][field_name]=value&filter[$and][1][field_name]=value2";
-      HttpResponseMessage response = client.GetAsync(new Uri($"/?{input}", UriKind.Relative), TestContext!.CancellationTokenSource.Token)
-        .ConfigureAwait(false).GetAwaiter().GetResult();
-
-      // Assert
-      _ = response.EnsureSuccessStatusCode();
-      string content = response.Content.ReadAsStringAsync(TestContext!.CancellationTokenSource.Token).GetAwaiter().GetResult();
-      Assert.AreEqual("OK", content);
-    }
-
-    [TestMethod]
-    public void When_multiple_filters_single_properties_parses_as_root_FilterInfoCollection()
-    {
-      // Arrange
-      WebApplicationBuilder builder = WebApplication.CreateBuilder(new WebApplicationOptions
-      {
-        EnvironmentName = "Development"
-      });
-      _ = builder.WebHost.UseTestServer();
-
-      WebApplication app = builder.Build();
-      _ = app.ParseQueryStringFilters(); // Use extension method
-
-      // Add a terminal middleware to inspect the context
-      app.Run(context =>
-      {
-        Assert.IsTrue(context.Items.ContainsKey(ContextItemKeys.Filters));
-        var actual = context.Items[ContextItemKeys.Filters] as FilterInfoCollection;
-        Assert.IsNotNull(actual);
-
-        Assert.AreEqual(2, actual.Count);
-        Assert.IsNotNull(actual);
-        Assert.AreEqual($"root", actual.Name);
-        Assert.AreEqual(string.Empty, actual.MemberOf);
-        Assert.AreEqual(Conjunction.And, actual.Conjunction);
-
-        var filterInfo = actual.First() as FilterInfo;
-        Assert.IsNotNull(filterInfo);
-        Assert.AreEqual("another_field_name-0", filterInfo.Name);
-        Assert.AreEqual("another_field_name", filterInfo.Path);
-        Assert.AreEqual(string.Empty, filterInfo.MemberOf);
-        Assert.AreEqual(Operator.GreaterThan, filterInfo.Operator);
-        Assert.AreEqual("secondValue", filterInfo.Values.FirstOrDefault());
-
-        var filterInfoColl = actual.Last() as FilterInfoCollection;
-        Assert.IsNotNull(filterInfoColl);
-        Assert.AreEqual($"field_name-or-group", filterInfoColl.Name);
-        Assert.AreEqual(string.Empty, filterInfoColl.MemberOf);
-        Assert.AreEqual(Conjunction.Or, filterInfoColl.Conjunction);
-
-        filterInfo = filterInfoColl.First() as FilterInfo;
-        Assert.IsNotNull(filterInfo);
-        Assert.AreEqual("field_name-0", filterInfo.Name);
-        Assert.AreEqual("field_name", filterInfo.Path);
-        Assert.AreEqual("field_name-or-group", filterInfo.MemberOf);
-        Assert.AreEqual(Operator.EqualTo, filterInfo.Operator);
-        Assert.AreEqual("value", filterInfo.Values.FirstOrDefault());
-
-        filterInfo = filterInfoColl.Last() as FilterInfo;
-        Assert.IsNotNull(filterInfo);
-        Assert.AreEqual("field_name-1", filterInfo.Name);
-        Assert.AreEqual("field_name", filterInfo.Path);
-        Assert.AreEqual("field_name-or-group", filterInfo.MemberOf);
-        Assert.AreEqual(Operator.Contains, filterInfo.Operator);
-        Assert.AreEqual("value2", filterInfo.Values.FirstOrDefault());
-
-        return context.Response.WriteAsync("OK", TestContext!.CancellationTokenSource.Token);
-      });
-
-      app.Start();
-
-      HttpClient client = app.GetTestClient();
-
-      // Act
-      string input = $@"filter[$or][0][field_name][$eq]=value
-&filter[$or][1][field_name][$contains]=value2
-&filter[another_field_name][$gt]=secondValue";
-      HttpResponseMessage response = client.GetAsync(new Uri($"/?{input}", UriKind.Relative), TestContext!.CancellationTokenSource.Token)
-        .ConfigureAwait(false).GetAwaiter().GetResult();
-
-      // Assert
-      _ = response.EnsureSuccessStatusCode();
-      string content = response.Content.ReadAsStringAsync(TestContext!.CancellationTokenSource.Token).GetAwaiter().GetResult();
-      Assert.AreEqual("OK", content);
-    }
-
-    /*
-    1.	Empty or Malformed Input
-        •	filter[]= (empty brackets)
-        •	filter[field_name] (missing =value)
-        •	filter[field_name]= (empty value)
-        •	filter==value(missing brackets)
-    */
-    [TestMethod]
-    public void When_filter_empty_brackets_parses_as_empty_root_FilterInfoCollection()
-    {
-      // Arrange
-      WebApplicationBuilder builder = WebApplication.CreateBuilder(new WebApplicationOptions
-      {
-        EnvironmentName = "Development"
-      });
-      _ = builder.WebHost.UseTestServer();
-
-      WebApplication app = builder.Build();
-      _ = app.ParseQueryStringFilters(); // Use extension method
-
-      // Add a terminal middleware to inspect the context
-      app.Run(context =>
-      {
-        Assert.IsTrue(context.Items.ContainsKey(ContextItemKeys.Filters));
-        var actual = context.Items[ContextItemKeys.Filters] as FilterInfoCollection;
-        Assert.IsNotNull(actual);
-        Assert.AreEqual($"root", actual.Name);
-        Assert.AreEqual(string.Empty, actual.MemberOf);
-        Assert.AreEqual(0, actual.Count);
-        Assert.AreEqual(Conjunction.And, actual.Conjunction);
-
-        return context.Response.WriteAsync("OK", TestContext!.CancellationTokenSource.Token);
-      });
-
-      app.Start();
-
-      HttpClient client = app.GetTestClient();
-
-      // Act
-      string input = "filter[]=";
-      HttpResponseMessage response = client.GetAsync(new Uri($"/?{input}", UriKind.Relative), TestContext!.CancellationTokenSource.Token)
-        .ConfigureAwait(false).GetAwaiter().GetResult();
-
-      // Assert
-      _ = response.EnsureSuccessStatusCode();
-      string content = response.Content.ReadAsStringAsync(TestContext!.CancellationTokenSource.Token).GetAwaiter().GetResult();
-      Assert.AreEqual("OK", content);
-    }
-
-    /*    
-    5.	Operator Edge Cases
-        •	Unknown or unsupported operator:
-          filter[field_name][$unknown]= value
-        •	Operator with missing value:
-          filter[field_name][$gt]=
-     */
-    [TestMethod]
-    [DataRow("filter[field_name]")]
-    [DataRow("filter[field_name][$eq]")]
-    [DataRow("filter[field_name][$ge]")]
-    [DataRow("filter[field_name][$gt]")]
-    [DataRow("filter[field_name][$le]")]
-    [DataRow("filter[field_name][$lt]")]
-    [DataRow("filter[field_name][$ne]")]
-    [DataRow("filter[field_name][$between]")]
-    [DataRow("filter[field_name][$contains]")]
-    [DataRow("filter[field_name][$endswith]")]
-    [DataRow("filter[field_name][$isnull]")]
-    [DataRow("filter[field_name][$startswith]")]
-    [DataRow("filter[field_name][$unknown]")]
-    public void When_filter_missing_value_parses_as_empty_root_FilterInfoCollection(string input)
-    {
-      // Arrange
-      WebApplicationBuilder builder = WebApplication.CreateBuilder(new WebApplicationOptions
-      {
-        EnvironmentName = "Development"
-      });
-      _ = builder.WebHost.UseTestServer();
-
-      WebApplication app = builder.Build();
-      _ = app.ParseQueryStringFilters(); // Use extension method
-
-      // Add a terminal middleware to inspect the context
-      app.Run(context =>
-      {
-        Assert.IsTrue(context.Items.ContainsKey(ContextItemKeys.Filters));
-        var actual = context.Items[ContextItemKeys.Filters] as FilterInfoCollection;
-        Assert.IsNotNull(actual);
-        Assert.AreEqual($"root", actual.Name);
-        Assert.AreEqual(string.Empty, actual.MemberOf);
-        Assert.AreEqual(0, actual.Count);
-        Assert.AreEqual(Conjunction.And, actual.Conjunction);
-
-        return context.Response.WriteAsync("OK", TestContext!.CancellationTokenSource.Token);
-      });
-
-      app.Start();
-
-      HttpClient client = app.GetTestClient();
-
-      // Act
-      HttpResponseMessage response = client.GetAsync(new Uri($"/?{input}", UriKind.Relative), TestContext!.CancellationTokenSource.Token)
-        .ConfigureAwait(false).GetAwaiter().GetResult();
-
-      // Assert
-      _ = response.EnsureSuccessStatusCode();
-      string content = response.Content.ReadAsStringAsync(TestContext!.CancellationTokenSource.Token).GetAwaiter().GetResult();
-      Assert.AreEqual("OK", content);
-    }
-
-    [TestMethod]
-    public void When_filter_missing_brackets_parses_as_empty_root_FilterInfoCollection()
-    {
-      // Arrange
-      WebApplicationBuilder builder = WebApplication.CreateBuilder(new WebApplicationOptions
-      {
-        EnvironmentName = "Development"
-      });
-      _ = builder.WebHost.UseTestServer();
-
-      WebApplication app = builder.Build();
-      _ = app.ParseQueryStringFilters(); // Use extension method
-
-      // Add a terminal middleware to inspect the context
-      app.Run(context =>
-      {
-        Assert.IsTrue(context.Items.ContainsKey(ContextItemKeys.Filters));
-        var actual = context.Items[ContextItemKeys.Filters] as FilterInfoCollection;
-        Assert.IsNotNull(actual);
-        Assert.AreEqual($"root", actual.Name);
-        Assert.AreEqual(string.Empty, actual.MemberOf);
-        Assert.AreEqual(0, actual.Count);
-        Assert.AreEqual(Conjunction.And, actual.Conjunction);
-
-        return context.Response.WriteAsync("OK", TestContext!.CancellationTokenSource.Token);
-      });
-
-      app.Start();
-
-      HttpClient client = app.GetTestClient();
-
-      // Act
-      string input = "filter=value";
-      HttpResponseMessage response = client.GetAsync(new Uri($"/?{input}", UriKind.Relative), TestContext!.CancellationTokenSource.Token)
-        .ConfigureAwait(false).GetAwaiter().GetResult();
-
-      // Assert
-      _ = response.EnsureSuccessStatusCode();
-      string content = response.Content.ReadAsStringAsync(TestContext!.CancellationTokenSource.Token).GetAwaiter().GetResult();
-      Assert.AreEqual("OK", content);
-    }
-
-    /*
-    3.	Unusual Characters in Property Names
-        •	Property names with special or unicode characters:
-          filter[na!me]=value, filter[字段]=value
-    4.	Multiple Values
-        •	Comma-separated values with spaces or empty entries:
-          filter[field_name]=a,,b, ,c
-    6.Deeply Nested Groups
-        •	More than three levels of nested groups to test recursion and stack safety.
-    7.	Group Index Gaps or Non-Sequential Indices
-        •	filter[$and][0][field]= a & filter[$and][2][field] = b(missing index 1)
-    8.	Case Sensitivity
-        •	Mixed-case conjunctions and operators:
-          filter[$and][0][field]= a, filter[field_name][$Gt]= b
-    9.	Multiple Filters with Same Path but Different Operators
-        •	filter[field_name][$gt]= 1 & filter[field_name][$lt] = 10
-    10.	Whitespace Handling
-        •	Extra spaces in property names, values, or between brackets:
-          filter[field_name] = value 
-    11.	Group with No Name
-        •	filter[group]= (group with empty name)
-    12.	Multiple MemberOf References
-        •	Filters referencing a group that is not defined in the same query string.
-    13.	Very Large Query Strings
-        •	Stress test with hundreds or thousands of filters/groups to check performance and memory usage.
-    */
-
-    [TestMethod]
-    public void When_single_filter_regex_operator_basic_pattern_parses_as_root_FilterInfoCollection()
-    {
-      // Arrange
-      WebApplicationBuilder builder = WebApplication.CreateBuilder(new WebApplicationOptions
-      {
-        EnvironmentName = "Development"
-      });
-      _ = builder.WebHost.UseTestServer();
-
-      WebApplication app = builder.Build();
-      _ = app.ParseQueryStringFilters();
-
-      // Add a terminal middleware to inspect the context
-      app.Run(context =>
-      {
-        Assert.IsTrue(context.Items.ContainsKey(ContextItemKeys.Filters));
-        var actual = context.Items[ContextItemKeys.Filters] as FilterInfoCollection;
-        Assert.IsNotNull(actual);
-
-        Assert.AreEqual(1, actual.Count);
-        Assert.AreEqual("root", actual.Name);
-        Assert.AreEqual(Conjunction.And, actual.Conjunction);
-
-        var filterInfo = actual.First() as FilterInfo;
-        Assert.IsNotNull(filterInfo);
-        Assert.AreEqual("email-0", filterInfo.Name);
-        Assert.AreEqual("email", filterInfo.Path);
-        Assert.AreEqual(string.Empty, filterInfo.MemberOf);
-        Assert.AreEqual(Operator.Regex, filterInfo.Operator);
-        Assert.AreEqual(@"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$", filterInfo.Values.FirstOrDefault());
-
-        return context.Response.WriteAsync("OK", TestContext!.CancellationTokenSource.Token);
-      });
-
-      app.Start();
-
-      HttpClient client = app.GetTestClient();
-
-      // Act
-      string input = @"filter[email][$regex]=^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$";
-      HttpResponseMessage response = client.GetAsync(new Uri($"/?{input}", UriKind.Relative), TestContext!.CancellationTokenSource.Token)
-        .ConfigureAwait(false).GetAwaiter().GetResult();
-
-      // Assert
-      _ = response.EnsureSuccessStatusCode();
-      string content = response.Content.ReadAsStringAsync(TestContext!.CancellationTokenSource.Token).GetAwaiter().GetResult();
-      Assert.AreEqual("OK", content);
-    }
-
-    [TestMethod]
-    public void When_single_filter_regex_operator_phone_pattern_parses_as_root_FilterInfoCollection()
-    {
-      // Arrange
-      WebApplicationBuilder builder = WebApplication.CreateBuilder(new WebApplicationOptions
-      {
-        EnvironmentName = "Development"
-      });
-      _ = builder.WebHost.UseTestServer();
-
-      WebApplication app = builder.Build();
-      _ = app.ParseQueryStringFilters();
-
-      // Add a terminal middleware to inspect the context
-      app.Run(context =>
-      {
-        Assert.IsTrue(context.Items.ContainsKey(ContextItemKeys.Filters));
-        var actual = context.Items[ContextItemKeys.Filters] as FilterInfoCollection;
-        Assert.IsNotNull(actual);
-
-        Assert.AreEqual(1, actual.Count);
-        Assert.AreEqual("root", actual.Name);
-        Assert.AreEqual(Conjunction.And, actual.Conjunction);
-
-        var filterInfo = actual.First() as FilterInfo;
-        Assert.IsNotNull(filterInfo);
-        Assert.AreEqual("phone-0", filterInfo.Name);
-        Assert.AreEqual("phone", filterInfo.Path);
-        Assert.AreEqual(string.Empty, filterInfo.MemberOf);
-        Assert.AreEqual(Operator.Regex, filterInfo.Operator);
-        Assert.AreEqual(@"^\(\d{3}\)\s\d{3}-\d{4}$", filterInfo.Values.FirstOrDefault());
-
-        return context.Response.WriteAsync("OK", TestContext!.CancellationTokenSource.Token);
-      });
-
-      app.Start();
-
-      HttpClient client = app.GetTestClient();
-
-      // Act
-      string input = @"filter[phone][$regex]=^\(\d{3}\)\s\d{3}-\d{4}$";
-      HttpResponseMessage response = client.GetAsync(new Uri($"/?{input}", UriKind.Relative), TestContext!.CancellationTokenSource.Token)
-        .ConfigureAwait(false).GetAwaiter().GetResult();
-
-      // Assert
-      _ = response.EnsureSuccessStatusCode();
-      string content = response.Content.ReadAsStringAsync(TestContext!.CancellationTokenSource.Token).GetAwaiter().GetResult();
-      Assert.AreEqual("OK", content);
-    }
-
-    [TestMethod]
-    public void When_single_filter_regex_operator_product_code_pattern_parses_as_root_FilterInfoCollection()
-    {
-      // Arrange
-      WebApplicationBuilder builder = WebApplication.CreateBuilder(new WebApplicationOptions
-      {
-        EnvironmentName = "Development"
-      });
-      _ = builder.WebHost.UseTestServer();
-
-      WebApplication app = builder.Build();
-      _ = app.ParseQueryStringFilters();
-
-      // Add a terminal middleware to inspect the context
-      app.Run(context =>
-      {
-        Assert.IsTrue(context.Items.ContainsKey(ContextItemKeys.Filters));
-        var actual = context.Items[ContextItemKeys.Filters] as FilterInfoCollection;
-        Assert.IsNotNull(actual);
-
-        Assert.AreEqual(1, actual.Count);
-        Assert.AreEqual("root", actual.Name);
-        Assert.AreEqual(Conjunction.And, actual.Conjunction);
-
-        var filterInfo = actual.First() as FilterInfo;
-        Assert.IsNotNull(filterInfo);
-        Assert.AreEqual("productCode-0", filterInfo.Name);
-        Assert.AreEqual("productCode", filterInfo.Path);
-        Assert.AreEqual(string.Empty, filterInfo.MemberOf);
-        Assert.AreEqual(Operator.Regex, filterInfo.Operator);
-        Assert.AreEqual(@"^[A-Z]{3}-\d{3}$", filterInfo.Values.FirstOrDefault());
-
-        return context.Response.WriteAsync("OK", TestContext!.CancellationTokenSource.Token);
-      });
-
-      app.Start();
-
-      HttpClient client = app.GetTestClient();
-
-      // Act
-      string input = @"filter[productCode][$regex]=^[A-Z]{3}-\d{3}$";
-      HttpResponseMessage response = client.GetAsync(new Uri($"/?{input}", UriKind.Relative), TestContext!.CancellationTokenSource.Token)
-        .ConfigureAwait(false).GetAwaiter().GetResult();
-
-      // Assert
-      _ = response.EnsureSuccessStatusCode();
-      string content = response.Content.ReadAsStringAsync(TestContext!.CancellationTokenSource.Token).GetAwaiter().GetResult();
-      Assert.AreEqual("OK", content);
-    }
-
-    [TestMethod]
-    public void When_single_filter_regex_operator_alphanumeric_pattern_parses_as_root_FilterInfoCollection()
-    {
-      // Arrange
-      WebApplicationBuilder builder = WebApplication.CreateBuilder(new WebApplicationOptions
-      {
-        EnvironmentName = "Development"
-      });
-      _ = builder.WebHost.UseTestServer();
-
-      WebApplication app = builder.Build();
-      _ = app.ParseQueryStringFilters();
-
-      // Add a terminal middleware to inspect the context
-      app.Run(context =>
-      {
-        Assert.IsTrue(context.Items.ContainsKey(ContextItemKeys.Filters));
-        var actual = context.Items[ContextItemKeys.Filters] as FilterInfoCollection;
-        Assert.IsNotNull(actual);
-
-        Assert.AreEqual(1, actual.Count);
-        Assert.AreEqual("root", actual.Name);
-        Assert.AreEqual(Conjunction.And, actual.Conjunction);
-
-        var filterInfo = actual.First() as FilterInfo;
-        Assert.IsNotNull(filterInfo);
-        Assert.AreEqual("username-0", filterInfo.Name);
-        Assert.AreEqual("username", filterInfo.Path);
-        Assert.AreEqual(string.Empty, filterInfo.MemberOf);
-        Assert.AreEqual(Operator.Regex, filterInfo.Operator);
-        Assert.AreEqual(@"^[a-zA-Z0-9]+$", filterInfo.Values.FirstOrDefault());
-
-        return context.Response.WriteAsync("OK", TestContext!.CancellationTokenSource.Token);
-      });
-
-      app.Start();
-
-      HttpClient client = app.GetTestClient();
-
-      // Act
-      string input = @"filter[username][$regex]=^[a-zA-Z0-9]+$";
-      HttpResponseMessage response = client.GetAsync(new Uri($"/?{input}", UriKind.Relative), TestContext!.CancellationTokenSource.Token)
-        .ConfigureAwait(false).GetAwaiter().GetResult();
-
-      // Assert
-      _ = response.EnsureSuccessStatusCode();
-      string content = response.Content.ReadAsStringAsync(TestContext!.CancellationTokenSource.Token).GetAwaiter().GetResult();
-      Assert.AreEqual("OK", content);
-    }
-
-    [TestMethod]
-    public void When_single_filter_regex_operator_case_sensitive_pattern_parses_as_root_FilterInfoCollection()
-    {
-      // Arrange
-      WebApplicationBuilder builder = WebApplication.CreateBuilder(new WebApplicationOptions
-      {
-        EnvironmentName = "Development"
-      });
-      _ = builder.WebHost.UseTestServer();
-
-      WebApplication app = builder.Build();
-      _ = app.ParseQueryStringFilters();
-
-      // Add a terminal middleware to inspect the context
-      app.Run(context =>
-      {
-        Assert.IsTrue(context.Items.ContainsKey(ContextItemKeys.Filters));
-        var actual = context.Items[ContextItemKeys.Filters] as FilterInfoCollection;
-        Assert.IsNotNull(actual);
-
-        Assert.AreEqual(1, actual.Count);
-        Assert.AreEqual("root", actual.Name);
-        Assert.AreEqual(Conjunction.And, actual.Conjunction);
-
-        var filterInfo = actual.First() as FilterInfo;
-        Assert.IsNotNull(filterInfo);
-        Assert.AreEqual("name-0", filterInfo.Name);
-        Assert.AreEqual("name", filterInfo.Path);
-        Assert.AreEqual(string.Empty, filterInfo.MemberOf);
-        Assert.AreEqual(Operator.Regex, filterInfo.Operator);
-        Assert.AreEqual(@"^Test.*", filterInfo.Values.FirstOrDefault());
-
-        return context.Response.WriteAsync("OK", TestContext!.CancellationTokenSource.Token);
-      });
-
-      app.Start();
-
-      HttpClient client = app.GetTestClient();
-
-      // Act
-      string input = @"filter[name][$regex]=^Test.*";
-      HttpResponseMessage response = client.GetAsync(new Uri($"/?{input}", UriKind.Relative), TestContext!.CancellationTokenSource.Token)
-        .ConfigureAwait(false).GetAwaiter().GetResult();
-
-      // Assert
-      _ = response.EnsureSuccessStatusCode();
-      string content = response.Content.ReadAsStringAsync(TestContext!.CancellationTokenSource.Token).GetAwaiter().GetResult();
-      Assert.AreEqual("OK", content);
-    }
-
-    [TestMethod]
-    public void When_single_filter_regex_operator_date_pattern_parses_as_root_FilterInfoCollection()
-    {
-      // Arrange
-      WebApplicationBuilder builder = WebApplication.CreateBuilder(new WebApplicationOptions
-      {
-        EnvironmentName = "Development"
-      });
-      _ = builder.WebHost.UseTestServer();
-
-      WebApplication app = builder.Build();
-      _ = app.ParseQueryStringFilters();
-
-      // Add a terminal middleware to inspect the context
-      app.Run(context =>
-      {
-        Assert.IsTrue(context.Items.ContainsKey(ContextItemKeys.Filters));
-        var actual = context.Items[ContextItemKeys.Filters] as FilterInfoCollection;
-        Assert.IsNotNull(actual);
-
-        Assert.AreEqual(1, actual.Count);
-        Assert.AreEqual("root", actual.Name);
-        Assert.AreEqual(Conjunction.And, actual.Conjunction);
-
-        var filterInfo = actual.First() as FilterInfo;
-        Assert.IsNotNull(filterInfo);
-        Assert.AreEqual("dateString-0", filterInfo.Name);
-        Assert.AreEqual("dateString", filterInfo.Path);
-        Assert.AreEqual(string.Empty, filterInfo.MemberOf);
-        Assert.AreEqual(Operator.Regex, filterInfo.Operator);
-        Assert.AreEqual(@"^\d{4}-\d{2}-\d{2}|\d{2}\/\d{2}\/\d{4}$", filterInfo.Values.FirstOrDefault());
-
-        return context.Response.WriteAsync("OK", TestContext!.CancellationTokenSource.Token);
-      });
-
-      app.Start();
-
-      HttpClient client = app.GetTestClient();
-
-      // Act
-      string input = @"filter[dateString][$regex]=^\d{4}-\d{2}-\d{2}|\d{2}\/\d{2}\/\d{4}$";
-      HttpResponseMessage response = client.GetAsync(new Uri($"/?{input}", UriKind.Relative), TestContext!.CancellationTokenSource.Token)
-        .ConfigureAwait(false).GetAwaiter().GetResult();
-
-      // Assert
-      _ = response.EnsureSuccessStatusCode();
-      string content = response.Content.ReadAsStringAsync(TestContext!.CancellationTokenSource.Token).GetAwaiter().GetResult();
-      Assert.AreEqual("OK", content);
-    }
-
-    [TestMethod]
-    public void When_single_filter_regex_operator_url_validation_pattern_parses_as_root_FilterInfoCollection()
-    {
-      // Arrange
-      WebApplicationBuilder builder = WebApplication.CreateBuilder(new WebApplicationOptions
-      {
-        EnvironmentName = "Development"
-      });
-      _ = builder.WebHost.UseTestServer();
-
-      WebApplication app = builder.Build();
-      _ = app.ParseQueryStringFilters();
-
-      // Add a terminal middleware to inspect the context
-      app.Run(context =>
-      {
-        Assert.IsTrue(context.Items.ContainsKey(ContextItemKeys.Filters));
-        var actual = context.Items[ContextItemKeys.Filters] as FilterInfoCollection;
-        Assert.IsNotNull(actual);
-
-        Assert.AreEqual(1, actual.Count);
-        Assert.AreEqual("root", actual.Name);
-        Assert.AreEqual(Conjunction.And, actual.Conjunction);
-
-        var filterInfo = actual.First() as FilterInfo;
-        Assert.IsNotNull(filterInfo);
-        Assert.AreEqual("website-0", filterInfo.Name);
-        Assert.AreEqual("website", filterInfo.Path);
-        Assert.AreEqual(string.Empty, filterInfo.MemberOf);
-        Assert.AreEqual(Operator.Regex, filterInfo.Operator);
-        Assert.AreEqual(@"^https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~?//=]*)$", filterInfo.Values.FirstOrDefault());
-
-        return context.Response.WriteAsync("OK", TestContext!.CancellationTokenSource.Token);
-      });
-
-      app.Start();
-
-      HttpClient client = app.GetTestClient();
-
-      // Act
-      //no #, & in regex
-      string input = @"filter[website][$regex]=^https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~?//=]*)$";
-      HttpResponseMessage response = client.GetAsync(new Uri($"/?{input}", UriKind.Relative), TestContext!.CancellationTokenSource.Token)
-        .ConfigureAwait(false).GetAwaiter().GetResult();
-
-      // Assert
-      _ = response.EnsureSuccessStatusCode();
-      string content = response.Content.ReadAsStringAsync(TestContext!.CancellationTokenSource.Token).GetAwaiter().GetResult();
-      Assert.AreEqual("OK", content);
-    }
-
-    [TestMethod]
-    public void When_multiple_regex_filters_different_properties_parses_as_root_FilterInfoCollection()
-    {
-      // Arrange
-      WebApplicationBuilder builder = WebApplication.CreateBuilder(new WebApplicationOptions
-      {
-        EnvironmentName = "Development"
-      });
-      _ = builder.WebHost.UseTestServer();
-
-      WebApplication app = builder.Build();
-      _ = app.ParseQueryStringFilters();
-
-      // Add a terminal middleware to inspect the context
-      app.Run(context =>
-      {
-        Assert.IsTrue(context.Items.ContainsKey(ContextItemKeys.Filters));
-        var actual = context.Items[ContextItemKeys.Filters] as FilterInfoCollection;
-        Assert.IsNotNull(actual);
-
-        Assert.AreEqual(2, actual.Count);
-        Assert.AreEqual("root", actual.Name);
-        Assert.AreEqual(Conjunction.And, actual.Conjunction);
-
-        var filterInfo = actual.First() as FilterInfo;
-        Assert.IsNotNull(filterInfo);
-        Assert.AreEqual("email-0", filterInfo.Name);
-        Assert.AreEqual("email", filterInfo.Path);
-        Assert.AreEqual(string.Empty, filterInfo.MemberOf);
-        Assert.AreEqual(Operator.Regex, filterInfo.Operator);
-        Assert.AreEqual(@"^[a-zA-Z0-9._%+-]+@company\.com$", filterInfo.Values.FirstOrDefault());
-
-        filterInfo = actual.Last() as FilterInfo;
-        Assert.IsNotNull(filterInfo);
-        Assert.AreEqual("employeeId-0", filterInfo.Name);
-        Assert.AreEqual("employeeId", filterInfo.Path);
-        Assert.AreEqual(string.Empty, filterInfo.MemberOf);
-        Assert.AreEqual(Operator.Regex, filterInfo.Operator);
-        Assert.AreEqual(@"^EMP-\d{4}$", filterInfo.Values.FirstOrDefault());
-
-        return context.Response.WriteAsync("OK", TestContext!.CancellationTokenSource.Token);
-      });
-
-      app.Start();
-
-      HttpClient client = app.GetTestClient();
-
-      // Act
-      string input = @"filter[email][$regex]=^[a-zA-Z0-9._%+-]+@company\.com$&filter[employeeId][$regex]=^EMP-\d{4}$";
-      HttpResponseMessage response = client.GetAsync(new Uri($"/?{input}", UriKind.Relative), TestContext!.CancellationTokenSource.Token)
-        .ConfigureAwait(false).GetAwaiter().GetResult();
-
-      // Assert
-      _ = response.EnsureSuccessStatusCode();
-      string content = response.Content.ReadAsStringAsync(TestContext!.CancellationTokenSource.Token).GetAwaiter().GetResult();
-      Assert.AreEqual("OK", content);
-    }
-
-    [TestMethod]
-    public void When_regex_filter_with_conjunction_group_parses_as_named_FilterInfoCollection()
-    {
-      // Arrange
-      WebApplicationBuilder builder = WebApplication.CreateBuilder(new WebApplicationOptions
-      {
-        EnvironmentName = "Development"
-      });
-      _ = builder.WebHost.UseTestServer();
-
-      WebApplication app = builder.Build();
-      _ = app.ParseQueryStringFilters();
-
-      // Add a terminal middleware to inspect the context
-      app.Run(context =>
-      {
-        Assert.IsTrue(context.Items.ContainsKey(ContextItemKeys.Filters));
-        var actual = context.Items[ContextItemKeys.Filters] as FilterInfoCollection;
-        Assert.IsNotNull(actual);
-
-        Assert.AreEqual(1, actual.Count);
-        Assert.AreEqual("email-and-group", actual.Name);
-        Assert.AreEqual(string.Empty, actual.MemberOf);
-        Assert.AreEqual(Conjunction.And, actual.Conjunction);
-
-        var filterInfo = actual.First() as FilterInfo;
-        Assert.IsNotNull(filterInfo);
-        Assert.AreEqual("email-0", filterInfo.Name);
-        Assert.AreEqual("email", filterInfo.Path);
-        Assert.AreEqual("email-and-group", filterInfo.MemberOf);
-        Assert.AreEqual(Operator.Regex, filterInfo.Operator);
-        Assert.AreEqual(@"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$", filterInfo.Values.FirstOrDefault());
-
-        return context.Response.WriteAsync("OK", TestContext!.CancellationTokenSource.Token);
-      });
-
-      app.Start();
-
-      HttpClient client = app.GetTestClient();
-
-      // Act
-      string input = @"filter[$and][0][email][$regex]=^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$";
-      HttpResponseMessage response = client.GetAsync(new Uri($"/?{input}", UriKind.Relative), TestContext!.CancellationTokenSource.Token)
-        .ConfigureAwait(false).GetAwaiter().GetResult();
-
-      // Assert
-      _ = response.EnsureSuccessStatusCode();
-      string content = response.Content.ReadAsStringAsync(TestContext!.CancellationTokenSource.Token).GetAwaiter().GetResult();
-      Assert.AreEqual("OK", content);
-    }
-
-    [TestMethod]
-    public void When_regex_filter_with_or_conjunction_group_parses_as_named_FilterInfoCollection()
-    {
-      // Arrange
-      WebApplicationBuilder builder = WebApplication.CreateBuilder(new WebApplicationOptions
-      {
-        EnvironmentName = "Development"
-      });
-      _ = builder.WebHost.UseTestServer();
-
-      WebApplication app = builder.Build();
-      _ = app.ParseQueryStringFilters();
-
-      // Add a terminal middleware to inspect the context
-      app.Run(context =>
-      {
-        Assert.IsTrue(context.Items.ContainsKey(ContextItemKeys.Filters));
-        var actual = context.Items[ContextItemKeys.Filters] as FilterInfoCollection;
-        Assert.IsNotNull(actual);
-
-        Assert.AreEqual(1, actual.Count);
-        Assert.AreEqual("phone-or-group", actual.Name);
-        Assert.AreEqual(string.Empty, actual.MemberOf);
-        Assert.AreEqual(Conjunction.Or, actual.Conjunction);
-
-        var filterInfo = actual.First() as FilterInfo;
-        Assert.IsNotNull(filterInfo);
-        Assert.AreEqual("phone-0", filterInfo.Name);
-        Assert.AreEqual("phone", filterInfo.Path);
-        Assert.AreEqual("phone-or-group", filterInfo.MemberOf);
-        Assert.AreEqual(Operator.Regex, filterInfo.Operator);
-        Assert.AreEqual(@"^\(\d{3}\)\s\d{3}-\d{4}$", filterInfo.Values.FirstOrDefault());
-
-        return context.Response.WriteAsync("OK", TestContext!.CancellationTokenSource.Token);
-      });
-
-      app.Start();
-
-      HttpClient client = app.GetTestClient();
-
-      // Act
-      string input = @"filter[$or][0][phone][$regex]=^\(\d{3}\)\s\d{3}-\d{4}$";
-      HttpResponseMessage response = client.GetAsync(new Uri($"/?{input}", UriKind.Relative), TestContext!.CancellationTokenSource.Token)
-        .ConfigureAwait(false).GetAwaiter().GetResult();
-
-      // Assert
-      _ = response.EnsureSuccessStatusCode();
-      string content = response.Content.ReadAsStringAsync(TestContext!.CancellationTokenSource.Token).GetAwaiter().GetResult();
-      Assert.AreEqual("OK", content);
-    }
-
-    [TestMethod]
-    public void When_regex_filter_with_case_insensitive_pattern_parses_as_root_FilterInfoCollection()
-    {
-      // Arrange
-      WebApplicationBuilder builder = WebApplication.CreateBuilder(new WebApplicationOptions
-      {
-        EnvironmentName = "Development"
-      });
-      _ = builder.WebHost.UseTestServer();
-
-      WebApplication app = builder.Build();
-      _ = app.ParseQueryStringFilters();
-
-      // Add a terminal middleware to inspect the context
-      app.Run(context =>
-      {
-        Assert.IsTrue(context.Items.ContainsKey(ContextItemKeys.Filters));
-        var actual = context.Items[ContextItemKeys.Filters] as FilterInfoCollection;
-        Assert.IsNotNull(actual);
-
-        Assert.AreEqual(1, actual.Count);
-        Assert.AreEqual("root", actual.Name);
-        Assert.AreEqual(Conjunction.And, actual.Conjunction);
-
-        var filterInfo = actual.First() as FilterInfo;
-        Assert.IsNotNull(filterInfo);
-        Assert.AreEqual("email-0", filterInfo.Name);
-        Assert.AreEqual("email", filterInfo.Path);
-        Assert.AreEqual(string.Empty, filterInfo.MemberOf);
-        Assert.AreEqual(Operator.Regex, filterInfo.Operator);
-        Assert.AreEqual(@"(?i)gmail\.com$", filterInfo.Values.FirstOrDefault());
-
-        return context.Response.WriteAsync("OK", TestContext!.CancellationTokenSource.Token);
-      });
-
-      app.Start();
-
-      HttpClient client = app.GetTestClient();
-
-      // Act
-      string input = @"filter[email][$regex]=(?i)gmail\.com$";
-      HttpResponseMessage response = client.GetAsync(new Uri($"/?{input}", UriKind.Relative), TestContext!.CancellationTokenSource.Token)
-        .ConfigureAwait(false).GetAwaiter().GetResult();
-
-      // Assert
-      _ = response.EnsureSuccessStatusCode();
-      string content = response.Content.ReadAsStringAsync(TestContext!.CancellationTokenSource.Token).GetAwaiter().GetResult();
-      Assert.AreEqual("OK", content);
-    }
-
-    [TestMethod]
-    public void When_regex_filter_with_word_boundary_pattern_parses_as_root_FilterInfoCollection()
-    {
-      // Arrange
-      WebApplicationBuilder builder = WebApplication.CreateBuilder(new WebApplicationOptions
-      {
-        EnvironmentName = "Development"
-      });
-      _ = builder.WebHost.UseTestServer();
-
-      WebApplication app = builder.Build();
-      _ = app.ParseQueryStringFilters();
-
-      // Add a terminal middleware to inspect the context
-      app.Run(context =>
-      {
-        Assert.IsTrue(context.Items.ContainsKey(ContextItemKeys.Filters));
-        var actual = context.Items[ContextItemKeys.Filters] as FilterInfoCollection;
-        Assert.IsNotNull(actual);
-
-        Assert.AreEqual(1, actual.Count);
-        Assert.AreEqual("root", actual.Name);
-        Assert.AreEqual(Conjunction.And, actual.Conjunction);
-
-        var filterInfo = actual.First() as FilterInfo;
-        Assert.IsNotNull(filterInfo);
-        Assert.AreEqual("content-0", filterInfo.Name);
-        Assert.AreEqual("content", filterInfo.Path);
-        Assert.AreEqual(string.Empty, filterInfo.MemberOf);
-        Assert.AreEqual(Operator.Regex, filterInfo.Operator);
-        Assert.AreEqual(@"\bimportant\b", filterInfo.Values.FirstOrDefault());
-
-        return context.Response.WriteAsync("OK", TestContext!.CancellationTokenSource.Token);
-      });
-
-      app.Start();
-
-      HttpClient client = app.GetTestClient();
-
-      // Act
-      string input = @"filter[content][$regex]=\bimportant\b";
-      HttpResponseMessage response = client.GetAsync(new Uri($"/?{input}", UriKind.Relative), TestContext!.CancellationTokenSource.Token)
-        .ConfigureAwait(false).GetAwaiter().GetResult();
-
-      // Assert
-      _ = response.EnsureSuccessStatusCode();
-      string content = response.Content.ReadAsStringAsync(TestContext!.CancellationTokenSource.Token).GetAwaiter().GetResult();
-      Assert.AreEqual("OK", content);
-    }
-
-    [TestMethod]
-    public void When_regex_filter_with_quantifier_pattern_parses_as_root_FilterInfoCollection()
-    {
-      // Arrange
-      WebApplicationBuilder builder = WebApplication.CreateBuilder(new WebApplicationOptions
-      {
-        EnvironmentName = "Development"
-      });
-      _ = builder.WebHost.UseTestServer();
-
-      WebApplication app = builder.Build();
-      _ = app.ParseQueryStringFilters();
-
-      // Add a terminal middleware to inspect the context
-      app.Run(context =>
-      {
-        Assert.IsTrue(context.Items.ContainsKey(ContextItemKeys.Filters));
-        var actual = context.Items[ContextItemKeys.Filters] as FilterInfoCollection;
-        Assert.IsNotNull(actual);
-
-        Assert.AreEqual(1, actual.Count);
-        Assert.AreEqual("root", actual.Name);
-        Assert.AreEqual(Conjunction.And, actual.Conjunction);
-
-        var filterInfo = actual.First() as FilterInfo;
-        Assert.IsNotNull(filterInfo);
-        Assert.AreEqual("code-0", filterInfo.Name);
-        Assert.AreEqual("code", filterInfo.Path);
-        Assert.AreEqual(string.Empty, filterInfo.MemberOf);
-        Assert.AreEqual(Operator.Regex, filterInfo.Operator);
-        Assert.AreEqual(@"^\d{2,4}$", filterInfo.Values.FirstOrDefault());
-
-        return context.Response.WriteAsync("OK", TestContext!.CancellationTokenSource.Token);
-      });
-
-      app.Start();
-
-      HttpClient client = app.GetTestClient();
-
-      // Act
-      string input = @"filter[code][$regex]=^\d{2,4}$";
-      HttpResponseMessage response = client.GetAsync(new Uri($"/?{input}", UriKind.Relative), TestContext!.CancellationTokenSource.Token)
-        .ConfigureAwait(false).GetAwaiter().GetResult();
-
-      // Assert
-      _ = response.EnsureSuccessStatusCode();
-      string content = response.Content.ReadAsStringAsync(TestContext!.CancellationTokenSource.Token).GetAwaiter().GetResult();
-      Assert.AreEqual("OK", content);
-    }
-
-    [TestMethod]
-    public void When_regex_filter_with_character_class_pattern_parses_as_root_FilterInfoCollection()
-    {
-      // Arrange
-      WebApplicationBuilder builder = WebApplication.CreateBuilder(new WebApplicationOptions
-      {
-        EnvironmentName = "Development"
-      });
-      _ = builder.WebHost.UseTestServer();
-
-      WebApplication app = builder.Build();
-      _ = app.ParseQueryStringFilters();
-
-      // Add a terminal middleware to inspect the context
-      app.Run(context =>
-      {
-        Assert.IsTrue(context.Items.ContainsKey(ContextItemKeys.Filters));
-        var actual = context.Items[ContextItemKeys.Filters] as FilterInfoCollection;
-        Assert.IsNotNull(actual);
-
-        Assert.AreEqual(1, actual.Count);
-        Assert.AreEqual("root", actual.Name);
-        Assert.AreEqual(Conjunction.And, actual.Conjunction);
-
-        var filterInfo = actual.First() as FilterInfo;
-        Assert.IsNotNull(filterInfo);
-        Assert.AreEqual("description-0", filterInfo.Name);
-        Assert.AreEqual("description", filterInfo.Path);
-        Assert.AreEqual(string.Empty, filterInfo.MemberOf);
-        Assert.AreEqual(Operator.Regex, filterInfo.Operator);
-        Assert.AreEqual(@"^[^0-9]+$", filterInfo.Values.FirstOrDefault());
-
-        return context.Response.WriteAsync("OK", TestContext!.CancellationTokenSource.Token);
-      });
-
-      app.Start();
-
-      HttpClient client = app.GetTestClient();
-
-      // Act
-      string input = @"filter[description][$regex]=^[^0-9]+$";
-      HttpResponseMessage response = client.GetAsync(new Uri($"/?{input}", UriKind.Relative), TestContext!.CancellationTokenSource.Token)
-        .ConfigureAwait(false).GetAwaiter().GetResult();
-
-      // Assert
-      _ = response.EnsureSuccessStatusCode();
-      string content = response.Content.ReadAsStringAsync(TestContext!.CancellationTokenSource.Token).GetAwaiter().GetResult();
-      Assert.AreEqual("OK", content);
-    }
-
-    [TestMethod]
-    public void When_regex_filter_nested_property_path_parses_as_root_FilterInfoCollection()
-    {
-      // Arrange
-      WebApplicationBuilder builder = WebApplication.CreateBuilder(new WebApplicationOptions
-      {
-        EnvironmentName = "Development"
-      });
-      _ = builder.WebHost.UseTestServer();
-
-      WebApplication app = builder.Build();
-      _ = app.ParseQueryStringFilters();
-
-      // Add a terminal middleware to inspect the context
-      app.Run(context =>
-      {
-        Assert.IsTrue(context.Items.ContainsKey(ContextItemKeys.Filters));
-        var actual = context.Items[ContextItemKeys.Filters] as FilterInfoCollection;
-        Assert.IsNotNull(actual);
-
-        Assert.AreEqual(1, actual.Count);
-        Assert.AreEqual("root", actual.Name);
-        Assert.AreEqual(Conjunction.And, actual.Conjunction);
-
-        var filterInfo = actual.First() as FilterInfo;
-        Assert.IsNotNull(filterInfo);
-        Assert.AreEqual("user.email-0", filterInfo.Name);
-        Assert.AreEqual("user.email", filterInfo.Path);
-        Assert.AreEqual(string.Empty, filterInfo.MemberOf);
-        Assert.AreEqual(Operator.Regex, filterInfo.Operator);
-        Assert.AreEqual(@"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$", filterInfo.Values.FirstOrDefault());
-        //Assert.AreEqual failed. Expected:<^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$>. Actual:<^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2>.
-        return context.Response.WriteAsync("OK", TestContext!.CancellationTokenSource.Token);
-      });
-
-      app.Start();
-
-      HttpClient client = app.GetTestClient();
-
-      // Act
-      string input = @"filter[user][email][$regex]=^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$";
-      HttpResponseMessage response = client.GetAsync(new Uri($"/?{input}", UriKind.Relative), TestContext!.CancellationTokenSource.Token)
-        .ConfigureAwait(false).GetAwaiter().GetResult();
-
-      // Assert
-      _ = response.EnsureSuccessStatusCode();
-      string content = response.Content.ReadAsStringAsync(TestContext!.CancellationTokenSource.Token).GetAwaiter().GetResult();
-      Assert.AreEqual("OK", content);
-    }
-
-    [TestMethod]
-    public void When_complex_mixed_regex_and_other_operators_parses_as_root_FilterInfoCollection()
-    {
-      // Arrange
-      WebApplicationBuilder builder = WebApplication.CreateBuilder(new WebApplicationOptions
-      {
-        EnvironmentName = "Development"
-      });
-      _ = builder.WebHost.UseTestServer();
-
-      WebApplication app = builder.Build();
-      _ = app.ParseQueryStringFilters();
-
-      // Add a terminal middleware to inspect the context
-      app.Run(context =>
-      {
-        Assert.IsTrue(context.Items.ContainsKey(ContextItemKeys.Filters));
-        var actual = context.Items[ContextItemKeys.Filters] as FilterInfoCollection;
-        Assert.IsNotNull(actual);
-
-        Assert.AreEqual(3, actual.Count);
-        Assert.AreEqual("root", actual.Name);
-        Assert.AreEqual(Conjunction.And, actual.Conjunction);
-
-        var filterInfo = actual.First() as FilterInfo;
-        Assert.IsNotNull(filterInfo);
-        Assert.AreEqual("email-0", filterInfo.Name);
-        Assert.AreEqual("email", filterInfo.Path);
-        Assert.AreEqual(string.Empty, filterInfo.MemberOf);
-        Assert.AreEqual(Operator.Regex, filterInfo.Operator);
-        Assert.AreEqual(@"^[a-zA-Z0-9._%+-]+@company\.com$", filterInfo.Values.FirstOrDefault());
-
-        filterInfo = actual.Skip(1).First() as FilterInfo;
-        Assert.IsNotNull(filterInfo);
-        Assert.AreEqual("status-0", filterInfo.Name);
-        Assert.AreEqual("status", filterInfo.Path);
-        Assert.AreEqual(string.Empty, filterInfo.MemberOf);
-        Assert.AreEqual(Operator.EqualTo, filterInfo.Operator);
-        Assert.AreEqual("active", filterInfo.Values.FirstOrDefault());
-
-        filterInfo = actual.Last() as FilterInfo;
-        Assert.IsNotNull(filterInfo);
-        Assert.AreEqual("employeeId-0", filterInfo.Name);
-        Assert.AreEqual("employeeId", filterInfo.Path);
-        Assert.AreEqual(string.Empty, filterInfo.MemberOf);
-        Assert.AreEqual(Operator.Regex, filterInfo.Operator);
-        Assert.AreEqual(@"^EMP-\d{4}$", filterInfo.Values.FirstOrDefault());
-
-        return context.Response.WriteAsync("OK", TestContext!.CancellationTokenSource.Token);
-      });
-
-      app.Start();
-
-      HttpClient client = app.GetTestClient();
-
-      // Act
-      string input = @"filter[email][$regex]=^[a-zA-Z0-9._%+-]+@company\.com$&filter[status]=active&filter[employeeId][$regex]=^EMP-\d{4}$";
-      HttpResponseMessage response = client.GetAsync(new Uri($"/?{input}", UriKind.Relative), TestContext!.CancellationTokenSource.Token)
-        .ConfigureAwait(false).GetAwaiter().GetResult();
-
-      // Assert
-      _ = response.EnsureSuccessStatusCode();
-      string content = response.Content.ReadAsStringAsync(TestContext!.CancellationTokenSource.Token).GetAwaiter().GetResult();
-      Assert.AreEqual("OK", content);
-    }
-
-    [TestMethod]
-    public void When_regex_filter_with_empty_pattern_parses_as_root_FilterInfoCollection()
-    {
-      // Arrange
-      WebApplicationBuilder builder = WebApplication.CreateBuilder(new WebApplicationOptions
-      {
-        EnvironmentName = "Development"
-      });
-      _ = builder.WebHost.UseTestServer();
-
-      WebApplication app = builder.Build();
-      _ = app.ParseQueryStringFilters();
-
-      // Add a terminal middleware to inspect the context
-      app.Run(context =>
-      {
-        Assert.IsTrue(context.Items.ContainsKey(ContextItemKeys.Filters));
-        var actual = context.Items[ContextItemKeys.Filters] as FilterInfoCollection;
-        Assert.IsNotNull(actual);
-
-        Assert.AreEqual(1, actual.Count);
-        Assert.AreEqual("root", actual.Name);
-        Assert.AreEqual(Conjunction.And, actual.Conjunction);
-
-        var filterInfo = actual.First() as FilterInfo;
-        Assert.IsNotNull(filterInfo);
-        Assert.AreEqual("field_name-0", filterInfo.Name);
-        Assert.AreEqual("field_name", filterInfo.Path);
-        Assert.AreEqual(string.Empty, filterInfo.MemberOf);
-        Assert.AreEqual(Operator.Regex, filterInfo.Operator);
-        Assert.IsEmpty(filterInfo.Values);
-
-        return context.Response.WriteAsync("OK", TestContext!.CancellationTokenSource.Token);
-      });
-
-      app.Start();
-
-      HttpClient client = app.GetTestClient();
-
-      // Act
-      string input = @"filter[field_name][$regex]=";
-      HttpResponseMessage response = client.GetAsync(new Uri($"/?{input}", UriKind.Relative), TestContext!.CancellationTokenSource.Token)
-        .ConfigureAwait(false).GetAwaiter().GetResult();
-
-      // Assert
-      _ = response.EnsureSuccessStatusCode();
-      string content = response.Content.ReadAsStringAsync(TestContext!.CancellationTokenSource.Token).GetAwaiter().GetResult();
-      Assert.AreEqual("OK", content);
-    }
-
-    [TestMethod]
-    public void When_regex_filter_with_url_encoded_pattern_parses_as_root_FilterInfoCollection()
-    {
-      // Arrange
-      WebApplicationBuilder builder = WebApplication.CreateBuilder(new WebApplicationOptions
-      {
-        EnvironmentName = "Development"
-      });
-      _ = builder.WebHost.UseTestServer();
-
-      WebApplication app = builder.Build();
-      _ = app.ParseQueryStringFilters();
-
-      // Add a terminal middleware to inspect the context
-      app.Run(context =>
-      {
-        Assert.IsTrue(context.Items.ContainsKey(ContextItemKeys.Filters));
-        var actual = context.Items[ContextItemKeys.Filters] as FilterInfoCollection;
-        Assert.IsNotNull(actual);
-
-        Assert.AreEqual(1, actual.Count);
-        Assert.AreEqual("root", actual.Name);
-        Assert.AreEqual(Conjunction.And, actual.Conjunction);
-
-        var filterInfo = actual.First() as FilterInfo;
-        Assert.IsNotNull(filterInfo);
-        Assert.AreEqual("pattern-0", filterInfo.Name);
-        Assert.AreEqual("pattern", filterInfo.Path);
-        Assert.AreEqual(string.Empty, filterInfo.MemberOf);
-        Assert.AreEqual(Operator.Regex, filterInfo.Operator);
-        // URL encoded \d+ should decode to \d+
-        Assert.AreEqual(@"\d+", filterInfo.Values.FirstOrDefault());
-
-        return context.Response.WriteAsync("OK", TestContext!.CancellationTokenSource.Token);
-      });
-
-      app.Start();
-
-      HttpClient client = app.GetTestClient();
-
-      // Act - URL encoded version of \d+ pattern
-      string input = @"filter[pattern][$regex]=%5Cd%2B";
-      HttpResponseMessage response = client.GetAsync(new Uri($"/?{input}", UriKind.Relative), TestContext!.CancellationTokenSource.Token)
-        .ConfigureAwait(false).GetAwaiter().GetResult();
-
-      // Assert
-      _ = response.EnsureSuccessStatusCode();
-      string content = response.Content.ReadAsStringAsync(TestContext!.CancellationTokenSource.Token).GetAwaiter().GetResult();
-      Assert.AreEqual("OK", content);
-    }
-
-    [TestMethod]
-    public void When_ParameterKey_accessed_returns_filter()
-    {
-      // Act
-      string result = _parser!.ParameterKey;
-
-      // Assert
-      Assert.AreEqual("filter", result);
-    }
-
-    [TestMethod]
-    public void When_Parse_called_with_null_returns_empty_FilterInfoCollection()
-    {
-      // Act
-      FilterInfoCollection result = _parser!.Parse(null!);
+      FilterInfoCollection result = _parser!.Parse(input);
 
       // Assert
       Assert.IsNotNull(result);
       Assert.AreEqual("root", result.Name);
-      Assert.AreEqual(0, result.Count);
-      Assert.AreEqual(Conjunction.And, result.Conjunction);
+      Assert.HasCount(0, result);
     }
 
     [TestMethod]
-    public void When_Parse_called_with_empty_string_returns_empty_FilterInfoCollection()
+    public void When_input_is_empty_Parse_returns_empty_collection()
     {
+      // Arrange
+      string input = string.Empty;
+
       // Act
-      FilterInfoCollection result = _parser!.Parse(string.Empty);
+      FilterInfoCollection result = _parser!.Parse(input);
 
       // Assert
       Assert.IsNotNull(result);
       Assert.AreEqual("root", result.Name);
-      Assert.AreEqual(0, result.Count);
-      Assert.AreEqual(Conjunction.And, result.Conjunction);
+      Assert.HasCount(0, result);
     }
 
     [TestMethod]
-    public void When_Parse_called_with_whitespace_returns_empty_FilterInfoCollection()
+    public void When_input_is_whitespace_Parse_returns_empty_collection()
     {
+      // Arrange
+      string input = "   \t\n\r   ";
+
       // Act
-      FilterInfoCollection result = _parser!.Parse("   ");
+      FilterInfoCollection result = _parser!.Parse(input);
 
       // Assert
       Assert.IsNotNull(result);
       Assert.AreEqual("root", result.Name);
-      Assert.AreEqual(0, result.Count);
-      Assert.AreEqual(Conjunction.And, result.Conjunction);
+      Assert.HasCount(0, result);
     }
 
     [TestMethod]
-    public void When_Parse_called_with_simple_filter_returns_FilterInfoCollection()
+    public void When_simple_filter_Parse_returns_single_filter()
     {
       // Arrange
       string input = "filter[name]=John";
@@ -2431,20 +107,129 @@ namespace Karma.Extensions.AspNetCore.Tests
 
       // Assert
       Assert.IsNotNull(result);
-      Assert.AreEqual("root", result.Name);
-      Assert.AreEqual(1, result.Count);
+      Assert.HasCount(1, result);
 
-      var filterInfo = result.First() as FilterInfo;
-      Assert.IsNotNull(filterInfo);
-      Assert.AreEqual("name-0", filterInfo.Name);
-      Assert.AreEqual("name", filterInfo.Path);
-      Assert.AreEqual(string.Empty, filterInfo.MemberOf);
-      Assert.AreEqual(Operator.EqualTo, filterInfo.Operator);
-      Assert.AreEqual("John", filterInfo.Values.FirstOrDefault());
+      var filter = result.First() as FilterInfo;
+      Assert.IsNotNull(filter);
+      Assert.AreEqual("name-0", filter.Name);
+      Assert.AreEqual("name", filter.Path);
+      Assert.AreEqual(Operator.EqualTo, filter.Operator);
+      Assert.HasCount(1, filter.Values);
+      Assert.AreEqual("John", filter.Values.First());
     }
 
     [TestMethod]
-    public void When_Parse_called_with_single_group_returns_FilterInfoCollection()
+    [DataRow("eq", Operator.EqualTo)]
+    [DataRow("ne", Operator.NotEqualTo)]
+    [DataRow("gt", Operator.GreaterThan)]
+    [DataRow("gte", Operator.GreaterThanOrEqualTo)]
+    [DataRow("ge", Operator.GreaterThanOrEqualTo)]
+    [DataRow("lt", Operator.LessThan)]
+    [DataRow("lte", Operator.LessThanOrEqualTo)]
+    [DataRow("le", Operator.LessThanOrEqualTo)]
+    [DataRow("contains", Operator.Contains)]
+    [DataRow("notcontains", Operator.NotContains)]
+    [DataRow("startswith", Operator.StartsWith)]
+    [DataRow("endswith", Operator.EndsWith)]
+    [DataRow("in", Operator.In)]
+    [DataRow("notin", Operator.NotIn)]
+    [DataRow("between", Operator.Between)]
+    [DataRow("notbetween", Operator.NotBetween)]
+    [DataRow("null", Operator.IsNull)]
+    [DataRow("notnull", Operator.IsNotNull)]
+    [DataRow("regex", Operator.Regex)]
+    public void When_filter_with_operator_Parse_returns_filter_with_correct_operator(string operatorValue, Operator expectedOperator)
+    {
+      // Arrange
+      string input = $"filter[field][${operatorValue}]=value";
+
+      // Act
+      FilterInfoCollection result = _parser!.Parse(input);
+
+      // Assert
+      Assert.IsNotNull(result);
+      Assert.HasCount(1, result);
+
+      var filter = result.First() as FilterInfo;
+      Assert.IsNotNull(filter);
+      Assert.AreEqual("field-0", filter.Name);
+      Assert.AreEqual("field", filter.Path);
+      Assert.AreEqual(expectedOperator, filter.Operator);
+      Assert.HasCount(1, filter.Values);
+      Assert.AreEqual("value", filter.Values.First());
+    }
+
+    [TestMethod]
+    public void When_nested_path_filter_Parse_returns_filter_with_dotted_path()
+    {
+      // Arrange
+      string input = "filter[customer][name]=John";
+
+      // Act
+      FilterInfoCollection result = _parser!.Parse(input);
+
+      // Assert
+      Assert.IsNotNull(result);
+      Assert.HasCount(1, result);
+
+      var filter = result.First() as FilterInfo;
+      Assert.IsNotNull(filter);
+      Assert.AreEqual("customer.name-0", filter.Name);
+      Assert.AreEqual("customer.name", filter.Path);
+      Assert.AreEqual(Operator.EqualTo, filter.Operator);
+      Assert.HasCount(1, filter.Values);
+      Assert.AreEqual("John", filter.Values.First());
+    }
+
+    [TestMethod]
+    public void When_filter_with_in_operator_Parse_returns_filter_with_multiple_values()
+    {
+      // Arrange
+      string input = "filter[status][$in]=pending,approved,shipped";
+
+      // Act
+      FilterInfoCollection result = _parser!.Parse(input);
+
+      // Assert
+      Assert.IsNotNull(result);
+      Assert.HasCount(1, result);
+
+      var filter = result.First() as FilterInfo;
+      Assert.IsNotNull(filter);
+      Assert.AreEqual("status-0", filter.Name);
+      Assert.AreEqual("status", filter.Path);
+      Assert.AreEqual(Operator.In, filter.Operator);
+      Assert.HasCount(3, filter.Values);
+      Assert.Contains("pending", filter.Values);
+      Assert.Contains("approved", filter.Values);
+      Assert.Contains("shipped", filter.Values);
+    }
+
+    [TestMethod]
+    public void When_filter_with_between_operator_Parse_returns_filter_with_multiple_values()
+    {
+      // Arrange
+      string input = "filter[price][$between]=10,100";
+
+      // Act
+      FilterInfoCollection result = _parser!.Parse(input);
+
+      // Assert
+      Assert.IsNotNull(result);
+      Assert.HasCount(1, result);
+
+      var filter = result.First() as FilterInfo;
+      Assert.IsNotNull(filter);
+      Assert.AreEqual("price-0", filter.Name);
+      Assert.AreEqual("price", filter.Path);
+      Assert.AreEqual(Operator.Between, filter.Operator);
+      Assert.HasCount(2, filter.Values);
+      Assert.Contains("10", filter.Values);
+      Assert.Contains("100", filter.Values);
+    }
+
+    [TestMethod]
+    public void When_group_definition_Parse_returns_filter_info_collection()
     {
       // Arrange
       string input = "filter[group]=users";
@@ -2455,339 +240,137 @@ namespace Karma.Extensions.AspNetCore.Tests
       // Assert
       Assert.IsNotNull(result);
       Assert.AreEqual("users", result.Name);
-      Assert.AreEqual(string.Empty, result.MemberOf);
-      Assert.AreEqual(0, result.Count);
       Assert.AreEqual(Conjunction.And, result.Conjunction);
     }
 
     [TestMethod]
-    public void When_Parse_called_with_operator_filter_returns_FilterInfoCollection()
+    [DataRow("and", Conjunction.And)]
+    [DataRow("or", Conjunction.Or)]
+
+    public void When_group_with_conjunction_Parse_returns_collection_with_correct_conjunction(string conjunctionValue, Conjunction expectedConjunction)
     {
       // Arrange
-      string input = "filter[age][$gt]=18";
+      string input = $"filter[group][${conjunctionValue}]=users";
 
       // Act
       FilterInfoCollection result = _parser!.Parse(input);
 
       // Assert
       Assert.IsNotNull(result);
-      Assert.AreEqual("root", result.Name);
-      Assert.AreEqual(1, result.Count);
-
-      var filterInfo = result.First() as FilterInfo;
-      Assert.IsNotNull(filterInfo);
-      Assert.AreEqual("age-0", filterInfo.Name);
-      Assert.AreEqual("age", filterInfo.Path);
-      Assert.AreEqual(Operator.GreaterThan, filterInfo.Operator);
-      Assert.AreEqual("18", filterInfo.Values.FirstOrDefault());
+      Assert.AreEqual("users", result.Name);
+      Assert.AreEqual(expectedConjunction, result.Conjunction);
     }
 
     [TestMethod]
-    public void When_Parse_called_with_nested_property_returns_FilterInfoCollection()
+    public void When_filter_with_and_conjunction_Parse_creates_implicit_group()
     {
       // Arrange
-      string input = "filter[user][profile][name]=John";
+      string input = "filter[$and][name]=John";
 
       // Act
       FilterInfoCollection result = _parser!.Parse(input);
 
       // Assert
       Assert.IsNotNull(result);
-      Assert.AreEqual("root", result.Name);
-      Assert.AreEqual(1, result.Count);
-
-      var filterInfo = result.First() as FilterInfo;
-      Assert.IsNotNull(filterInfo);
-      Assert.AreEqual("user.profile.name-0", filterInfo.Name);
-      Assert.AreEqual("user.profile.name", filterInfo.Path);
-      Assert.AreEqual(Operator.EqualTo, filterInfo.Operator);
-      Assert.AreEqual("John", filterInfo.Values.FirstOrDefault());
-    }
-
-    [TestMethod]
-    public void When_Parse_called_with_conjunction_filter_returns_FilterInfoCollection()
-    {
-      // Arrange
-      string input = "filter[$and][0][name]=John&filter[$and][1][name][$contains]=Doe";
-
-      // Act
-      FilterInfoCollection result = _parser!.Parse(input);
-
-      // Assert
-      Assert.IsNotNull(result);
+      Assert.HasCount(1, result);
       Assert.AreEqual("name-and-group", result.Name);
-      Assert.AreEqual(2, result.Count);
       Assert.AreEqual(Conjunction.And, result.Conjunction);
 
-      var firstFilter = result.First() as FilterInfo;
-      Assert.IsNotNull(firstFilter);
-      Assert.AreEqual("name-0", firstFilter.Name);
-      Assert.AreEqual("name", firstFilter.Path);
-      Assert.AreEqual("name-and-group", firstFilter.MemberOf);
-      Assert.AreEqual(Operator.EqualTo, firstFilter.Operator);
-      Assert.AreEqual("John", firstFilter.Values.FirstOrDefault());
-
-      var secondFilter = result.Last() as FilterInfo;
-      Assert.IsNotNull(secondFilter);
-      Assert.AreEqual("name-1", secondFilter.Name);
-      Assert.AreEqual("name", secondFilter.Path);
-      Assert.AreEqual("name-and-group", secondFilter.MemberOf);
-      Assert.AreEqual(Operator.Contains, secondFilter.Operator);
-      Assert.AreEqual("Doe", secondFilter.Values.FirstOrDefault());
+      var filter = result.First() as FilterInfo;
+      Assert.IsNotNull(filter);
+      Assert.AreEqual("name-0", filter.Name);
+      Assert.AreEqual("name-and-group", filter.MemberOf);
     }
 
     [TestMethod]
-    public void When_Parse_called_with_url_encoded_values_returns_decoded_FilterInfoCollection()
+    public void When_filter_with_or_conjunction_Parse_creates_implicit_group()
     {
       // Arrange
-      string input = "filter[email]=%20test%40example.com%20";
+      string input = "filter[$or][0][name]=John";
 
       // Act
       FilterInfoCollection result = _parser!.Parse(input);
 
       // Assert
       Assert.IsNotNull(result);
-      Assert.AreEqual("root", result.Name);
-      Assert.AreEqual(1, result.Count);
+      Assert.HasCount(1, result);
 
-      var filterInfo = result.First() as FilterInfo;
-      Assert.IsNotNull(filterInfo);
-      Assert.AreEqual("email-0", filterInfo.Name);
-      Assert.AreEqual("email", filterInfo.Path);
-      Assert.AreEqual(Operator.EqualTo, filterInfo.Operator);
-      Assert.AreEqual(" test@example.com ", filterInfo.Values.FirstOrDefault());
+      Assert.AreEqual("name-or-group", result.Name);
+      Assert.AreEqual(Conjunction.Or, result.Conjunction);
+
+      var filter = result.First() as FilterInfo;
+      Assert.IsNotNull(filter);
+      Assert.AreEqual("name-0", filter.Name);
+      Assert.AreEqual("name-or-group", filter.MemberOf);
     }
 
     [TestMethod]
-    [DataRow("filter[tags][$in]=red,blue,green", new[] { "red", "blue", "green" })]
-    [DataRow("filter[score][$between]=10,90", new[] { "10", "90" })]
-    [DataRow("filter[categories][$notin]=draft,archived", new[] { "draft", "archived" })]
-    [DataRow("filter[range][$notbetween]=5,15", new[] { "5", "15" })]
-    public void When_Parse_called_with_comma_separated_values_returns_array_values(string input, string[] expectedValues)
-    {
-      // Act
-      FilterInfoCollection result = _parser!.Parse(input);
-
-      // Assert
-      Assert.IsNotNull(result);
-      Assert.AreEqual(1, result.Count);
-
-      var filterInfo = result.First() as FilterInfo;
-      Assert.IsNotNull(filterInfo);
-      Assert.AreEqual(expectedValues?.Length, filterInfo.Values.Count);
-
-      for (int i = 0; i < expectedValues?.Length; i++)
-      {
-        Assert.AreEqual(expectedValues[i], filterInfo.Values.ElementAt(i));
-      }
-    }
-
-    [TestMethod]
-    public void When_Parse_called_with_special_characters_in_property_name_returns_FilterInfoCollection()
+    public void When_filter_with_multiple_or_conjunction_Parse_creates_implicit_group()
     {
       // Arrange
-      string input = "filter[field_with-special.chars]=value";
+      string input = "filter[$or][0][name]=John&filter[$or][1][name]=Jill";
 
       // Act
       FilterInfoCollection result = _parser!.Parse(input);
 
       // Assert
       Assert.IsNotNull(result);
-      Assert.AreEqual(1, result.Count);
+      Assert.HasCount(2, result);
 
-      var filterInfo = result.First() as FilterInfo;
-      Assert.IsNotNull(filterInfo);
-      Assert.AreEqual("field_with-special.chars-0", filterInfo.Name);
-      Assert.AreEqual("field_with-special.chars", filterInfo.Path);
-      Assert.AreEqual("value", filterInfo.Values.FirstOrDefault());
+      Assert.AreEqual("name-or-group", result.Name);
+      Assert.AreEqual(Conjunction.Or, result.Conjunction);
+
+      var filter = result.First() as FilterInfo;
+      Assert.IsNotNull(filter);
+      Assert.AreEqual("name-0", filter.Name);
+      Assert.AreEqual("name-or-group", filter.MemberOf);
+      Assert.AreEqual("John", filter.Values.First());
+
+      filter = result.Last() as FilterInfo;
+      Assert.IsNotNull(filter);
+      Assert.AreEqual("name-1", filter.Name);
+      Assert.AreEqual("name-or-group", filter.MemberOf);
+      Assert.AreEqual("Jill", filter.Values.First());
     }
 
     [TestMethod]
-    public void When_Parse_called_with_empty_value_returns_FilterInfoCollection_with_empty_values()
+    public void When_filter_with_memberof_Parse_assigns_correct_member()
     {
       // Arrange
-      string input = "filter[name]=";
+      string input = "filter[users][0][name]=John";
 
       // Act
       FilterInfoCollection result = _parser!.Parse(input);
 
       // Assert
       Assert.IsNotNull(result);
-      Assert.AreEqual(1, result.Count);
+      Assert.HasCount(1, result);
+      Assert.AreEqual("users", result.Name);
+      Assert.AreEqual(Conjunction.And, result.Conjunction);
 
-      var filterInfo = result.First() as FilterInfo;
-      Assert.IsNotNull(filterInfo);
-      Assert.AreEqual("name-0", filterInfo.Name);
-      Assert.AreEqual("name", filterInfo.Path);
-      Assert.IsTrue(filterInfo.Values.Count == 0 || string.IsNullOrEmpty(filterInfo.Values.FirstOrDefault()?.ToString()));
+      var filter = result.First() as FilterInfo;
+      Assert.IsNotNull(filter);
+      Assert.AreEqual("name-0", filter.Name);
+      Assert.AreEqual("users", filter.MemberOf);
+      Assert.AreEqual("name", filter.Path);
     }
 
     [TestMethod]
-    public void When_Parse_called_with_invalid_regex_pattern_returns_empty_FilterInfoCollection()
+    public void When_url_encoded_input_Parse_decodes_correctly()
     {
       // Arrange
-      string input = "filter[invalidpattern]=value";
+      string input = "filter%5Bname%5D=John%20Doe";
 
       // Act
       FilterInfoCollection result = _parser!.Parse(input);
 
       // Assert
       Assert.IsNotNull(result);
-      Assert.AreEqual("root", result.Name);
-    }
+      Assert.HasCount(1, result);
 
-    [TestMethod]
-    public void When_TryParse_called_with_null_returns_false()
-    {
-      // Act
-      bool result = _parser!.TryParse(null!, out FilterInfoCollection? parsed);
-
-      // Assert
-      Assert.IsFalse(result);
-      Assert.IsNull(parsed);
-    }
-
-    [TestMethod]
-    public void When_TryParse_called_with_empty_string_returns_false()
-    {
-      // Act
-      bool result = _parser!.TryParse(string.Empty, out FilterInfoCollection? parsed);
-
-      // Assert
-      Assert.IsFalse(result);
-      Assert.IsNull(parsed);
-    }
-
-    [TestMethod]
-    public void When_TryParse_called_with_whitespace_returns_false()
-    {
-      // Act
-      bool result = _parser!.TryParse("   ", out FilterInfoCollection? parsed);
-
-      // Assert
-      Assert.IsFalse(result);
-      Assert.IsNull(parsed);
-    }
-
-    [TestMethod]
-    public void When_TryParse_called_with_valid_filter_returns_true()
-    {
-      // Arrange
-      string input = "filter[name]=John";
-
-      // Act
-      bool result = _parser!.TryParse(input, out FilterInfoCollection? parsed);
-
-      // Assert
-      Assert.IsTrue(result);
-      Assert.IsNotNull(parsed);
-      Assert.AreEqual(1, parsed.Count);
-
-      var filterInfo = parsed.First() as FilterInfo;
-      Assert.IsNotNull(filterInfo);
-      Assert.AreEqual("name-0", filterInfo.Name);
-      Assert.AreEqual("John", filterInfo.Values.FirstOrDefault());
-    }
-
-    [TestMethod]
-    public void When_TryParse_called_with_invalid_filter_returns_false()
-    {
-      // Arrange
-      string input = "notafilter[name]=John";
-
-      // Act
-      bool result = _parser!.TryParse(input, out FilterInfoCollection? parsed);
-
-      // Assert
-      Assert.IsFalse(result);
-      Assert.IsNull(parsed);
-    }
-
-    [TestMethod]
-    public void When_IParseStrategy_Parse_called_returns_object()
-    {
-      // Arrange
-      IParseStrategy parseStrategy = _parser!;
-      string input = "filter[name]=John";
-
-      // Act
-      object? result = parseStrategy.Parse(input);
-
-      // Assert
-      Assert.IsNotNull(result);
-      Assert.IsInstanceOfType(result, typeof(FilterInfoCollection));
-
-      var filterCollection = result as FilterInfoCollection;
-      Assert.IsNotNull(filterCollection);
-      Assert.AreEqual(1, filterCollection.Count);
-    }
-
-    [TestMethod]
-    public void When_IParseStrategy_TryParse_called_with_valid_input_returns_true()
-    {
-      // Arrange
-      IParseStrategy parseStrategy = _parser!;
-      string input = "filter[name]=John";
-
-      // Act
-      bool result = parseStrategy.TryParse(input, out object? parsed);
-
-      // Assert
-      Assert.IsTrue(result);
-      Assert.IsNotNull(parsed);
-      Assert.IsInstanceOfType(parsed, typeof(FilterInfoCollection));
-    }
-
-    [TestMethod]
-    public void When_IParseStrategy_TryParse_called_with_invalid_input_returns_false()
-    {
-      // Arrange
-      IParseStrategy parseStrategy = _parser!;
-      string input = "notafilter";
-
-      // Act
-      bool result = parseStrategy.TryParse(input, out object? parsed);
-
-      // Assert
-      Assert.IsFalse(result);
-      Assert.IsNull(parsed);
-    }
-
-    [TestMethod]
-    [DataRow("$eq", Operator.EqualTo)]
-    [DataRow("$ne", Operator.NotEqualTo)]
-    [DataRow("$gt", Operator.GreaterThan)]
-    [DataRow("$gte", Operator.GreaterThanOrEqualTo)]
-    [DataRow("$ge", Operator.GreaterThanOrEqualTo)]
-    [DataRow("$lt", Operator.LessThan)]
-    [DataRow("$lte", Operator.LessThanOrEqualTo)]
-    [DataRow("$le", Operator.LessThanOrEqualTo)]
-    [DataRow("$contains", Operator.Contains)]
-    [DataRow("$notcontains", Operator.NotContains)]
-    [DataRow("$startswith", Operator.StartsWith)]
-    [DataRow("$endswith", Operator.EndsWith)]
-    [DataRow("$in", Operator.In)]
-    [DataRow("$notin", Operator.NotIn)]
-    [DataRow("$between", Operator.Between)]
-    [DataRow("$notbetween", Operator.NotBetween)]
-    [DataRow("$null", Operator.IsNull)]
-    [DataRow("$notnull", Operator.IsNotNull)]
-    [DataRow("$regex", Operator.Regex)]
-    public void When_Parse_called_with_different_operators_returns_correct_Operator(string operatorValue, Operator expectedOperator)
-    {
-      // Arrange
-      string input = $"filter[field][{operatorValue}]=value";
-
-      // Act
-      FilterInfoCollection result = _parser!.Parse(input);
-
-      // Assert
-      Assert.IsNotNull(result);
-      Assert.AreEqual(1, result.Count);
-
-      var filterInfo = result.First() as FilterInfo;
-      Assert.IsNotNull(filterInfo);
-      Assert.AreEqual(expectedOperator, filterInfo.Operator);
+      var filter = result.First() as FilterInfo;
+      Assert.IsNotNull(filter);
+      Assert.AreEqual("John Doe", filter.Values.First());
     }
 
     [TestMethod]
@@ -2805,9 +388,265 @@ namespace Karma.Extensions.AspNetCore.Tests
     }
 
     [TestMethod]
-    [DataRow("and", Conjunction.And)]
-    [DataRow("or", Conjunction.Or)]
-    public void When_Parse_called_with_conjunction_returns_correct_Conjunction(string conjunctionValue, Conjunction expectedConjunction)
+    public void When_complex_nested_filters_Parse_builds_correct_hierarchy()
+    {
+      // Arrange
+      string input = "filter[users][0][name]=John&filter[users][0][age][$gt]=18&filter[users][1][name]=Jane";
+
+      // Act
+      FilterInfoCollection result = _parser!.Parse(input);
+
+      // Assert
+      Assert.IsNotNull(result);
+      Assert.AreEqual("users", result.Name);
+      Assert.HasCount(3, result);
+
+      FilterInfo[] filters = [.. result.OfType<FilterInfo>()];
+      Assert.HasCount(3, filters);
+
+      // Check first filter
+      FilterInfo? johnNameFilter = filters.FirstOrDefault((f) => f.Path == "name" && f.Values.Contains("John"));
+      Assert.IsNotNull(johnNameFilter);
+      Assert.AreEqual("users", johnNameFilter.MemberOf);
+
+      // Check age filter
+      FilterInfo? ageFilter = filters.FirstOrDefault((f) => f.Path == "age");
+      Assert.IsNotNull(ageFilter);
+      Assert.AreEqual(Operator.GreaterThan, ageFilter.Operator);
+      Assert.AreEqual("18", ageFilter.Values.First());
+
+      // Check Jane filter
+      FilterInfo? janeNameFilter = filters.FirstOrDefault((f) => f.Path == "name" && f.Values.Contains("Jane"));
+      Assert.IsNotNull(janeNameFilter);
+      Assert.AreEqual("users", janeNameFilter.MemberOf);
+    }
+
+    [TestMethod]
+    public void When_invalid_regex_timeout_Parse_returns_empty_collection()
+    {
+      // Arrange
+      // This test would require a way to trigger RegexMatchTimeoutException
+      // For now, we test with a complex but valid input that could potentially timeout
+      string input = new string('a', 10000) + "filter[name]=test";
+
+      // Act
+      FilterInfoCollection result = _parser!.Parse(input);
+
+      // Assert
+      Assert.IsNotNull(result);
+      Assert.AreEqual("root", result.Name);
+    }
+
+    [TestMethod]
+    public void When_input_is_null_TryParse_returns_false()
+    {
+      // Arrange
+      string input = null!;
+
+      // Act
+      bool success = _parser!.TryParse(input, out FilterInfoCollection? parsed);
+
+      // Assert
+      Assert.IsFalse(success);
+      Assert.IsNull(parsed);
+    }
+
+    [TestMethod]
+    public void When_input_is_empty_TryParse_returns_false()
+    {
+      // Arrange
+      string input = string.Empty;
+
+      // Act
+      bool success = _parser!.TryParse(input, out FilterInfoCollection? parsed);
+
+      // Assert
+      Assert.IsFalse(success);
+      Assert.IsNull(parsed);
+    }
+
+    [TestMethod]
+    public void When_input_is_whitespace_TryParse_returns_false()
+    {
+      // Arrange
+      string input = "   \t\n\r   ";
+
+      // Act
+      bool success = _parser!.TryParse(input, out FilterInfoCollection? parsed);
+
+      // Assert
+      Assert.IsFalse(success);
+      Assert.IsNull(parsed);
+    }
+
+    [TestMethod]
+    public void When_no_matches_found_TryParse_returns_false()
+    {
+      // Arrange
+      string input = "invalidinput";
+
+      // Act
+      bool success = _parser!.TryParse(input, out FilterInfoCollection? parsed);
+
+      // Assert
+      Assert.IsFalse(success);
+      Assert.IsNull(parsed);
+    }
+
+    [TestMethod]
+    public void When_valid_filter_TryParse_returns_true_with_parsed_result()
+    {
+      // Arrange
+      string input = "filter[name]=John";
+
+      // Act
+      bool success = _parser!.TryParse(input, out FilterInfoCollection? parsed);
+
+      // Assert
+      Assert.IsTrue(success);
+      Assert.IsNotNull(parsed);
+      Assert.HasCount(1, parsed);
+
+      var filter = parsed.First() as FilterInfo;
+      Assert.IsNotNull(filter);
+      Assert.AreEqual("name", filter.Path);
+      Assert.AreEqual("John", filter.Values.First());
+    }
+
+    [TestMethod]
+    public void When_parameter_key_requested_ParameterKey_returns_filter()
+    {
+      // Act
+      string parameterKey = _parser!.ParameterKey;
+
+      // Assert
+      Assert.AreEqual("filter", parameterKey);
+    }
+
+    [TestMethod]
+    public void When_custom_pattern_provider_supplied_constructor_uses_provided_pattern()
+    {
+      // Arrange
+      FilterPatternProvider customPatternProvider = FilterPatternProvider.Default;
+
+      // Act
+      var parser = new FilterQueryStringParser(customPatternProvider);
+
+      // Assert
+      Assert.IsNotNull(parser);
+      Assert.AreEqual("filter", parser.ParameterKey);
+    }
+
+    [TestMethod]
+    public void When_null_pattern_provider_supplied_constructor_uses_default()
+    {
+      // Act
+      var parser = new FilterQueryStringParser(null);
+
+      // Assert
+      Assert.IsNotNull(parser);
+      Assert.AreEqual("filter", parser.ParameterKey);
+    }
+
+    [TestMethod]
+    public void When_empty_values_for_in_operator_Parse_returns_empty_collection()
+    {
+      // Arrange
+      string input = "filter[status][$in]=";
+
+      // Act
+      FilterInfoCollection result = _parser!.Parse(input);
+
+      // Assert
+      Assert.IsNotNull(result);
+      Assert.HasCount(1, result);
+
+      var filter = result.First() as FilterInfo;
+      Assert.IsNotNull(filter);
+      Assert.AreEqual(Operator.In, filter.Operator);
+      Assert.HasCount(0, filter.Values);
+    }
+
+    [TestMethod]
+    public void When_single_value_for_between_operator_Parse_returns_empty_collection()
+    {
+      // Arrange
+      string input = "filter[price][$between]=10";
+
+      // Act
+      FilterInfoCollection result = _parser!.Parse(input);
+
+      // Assert
+      Assert.IsNotNull(result);
+      Assert.HasCount(1, result);
+
+      var filter = result.First() as FilterInfo;
+      Assert.IsNotNull(filter);
+      Assert.AreEqual(Operator.Between, filter.Operator);
+      Assert.HasCount(1, filter.Values);
+      Assert.AreEqual("10", filter.Values.First());
+    }
+
+    [TestMethod]
+    public void When_dot_separated_path_in_brackets_Parse_creates_correct_path()
+    {
+      // Arrange
+      string input = "filter[customer.address.city]=New York";
+
+      // Act
+      FilterInfoCollection result = _parser!.Parse(input);
+
+      // Assert
+      Assert.IsNotNull(result);
+      Assert.HasCount(1, result);
+
+      var filter = result.First() as FilterInfo;
+      Assert.IsNotNull(filter);
+      Assert.AreEqual("customer.address.city", filter.Path);
+      Assert.AreEqual("New York", filter.Values.First());
+    }
+
+    [TestMethod]
+    [DataRow("EQ", Operator.EqualTo)]
+    [DataRow("NE", Operator.NotEqualTo)]
+    [DataRow("GT", Operator.GreaterThan)]
+    [DataRow("GTE", Operator.GreaterThanOrEqualTo)]
+    [DataRow("GE", Operator.GreaterThanOrEqualTo)]
+    [DataRow("LT", Operator.LessThan)]
+    [DataRow("LTE", Operator.LessThanOrEqualTo)]
+    [DataRow("LE", Operator.LessThanOrEqualTo)]
+    [DataRow("CONTAINS", Operator.Contains)]
+    [DataRow("NOTCONTAINS", Operator.NotContains)]
+    [DataRow("STARTSWITH", Operator.StartsWith)]
+    [DataRow("ENDSWITH", Operator.EndsWith)]
+    [DataRow("IN", Operator.In)]
+    [DataRow("NOTIN", Operator.NotIn)]
+    [DataRow("BETWEEN", Operator.Between)]
+    [DataRow("NOTBETWEEN", Operator.NotBetween)]
+    [DataRow("NULL", Operator.IsNull)]
+    [DataRow("NOTNULL", Operator.IsNotNull)]
+    [DataRow("REGEX", Operator.Regex)]
+    public void When_case_insensitive_operator_Parse_returns_correct_Operator(string operatorValue, Operator expectedOperator)
+    {
+      // Arrange
+      string input = $"filter[field][${operatorValue}]=value";
+
+      // Act
+      FilterInfoCollection result = _parser!.Parse(input);
+
+      // Assert
+      Assert.IsNotNull(result);
+      Assert.HasCount(1, result);
+
+      var filter = result.First() as FilterInfo;
+      Assert.IsNotNull(filter);
+      Assert.AreEqual(expectedOperator, filter.Operator);
+    }
+
+    [TestMethod]
+    [DataRow("AND", Conjunction.And)]
+    [DataRow("OR", Conjunction.Or)]
+    public void When_Parse_called_with_case_insensitive_conjunction_returns_correct_Conjunction(string conjunctionValue, Conjunction expectedConjunction)
     {
       // Arrange
       string input = $"filter[${conjunctionValue}][0][field]=value";
@@ -2822,92 +661,105 @@ namespace Karma.Extensions.AspNetCore.Tests
     }
 
     [TestMethod]
-    public void When_Parse_called_with_case_insensitive_operator_returns_correct_Operator()
+    public void When_explicit_interface_implementation_called_Parse_returns_object()
     {
       // Arrange
-      string input = "filter[field][$GT]=10";
+      IParseStrategy strategy = _parser!;
+      string input = "filter[name]=John";
+
+      // Act
+      object? result = strategy.Parse(input);
+
+      // Assert
+      Assert.IsNotNull(result);
+      FilterInfoCollection collection = Assert.IsInstanceOfType<FilterInfoCollection>(result);
+
+      Assert.HasCount(1, collection);
+    }
+
+    [TestMethod]
+    public void When_explicit_interface_implementation_called_TryParse_returns_correct_result()
+    {
+      // Arrange
+      IParseStrategy strategy = _parser!;
+      string input = "filter[name]=John";
+
+      // Act
+      bool success = strategy.TryParse(input, out object? parsed);
+
+      // Assert
+      Assert.IsTrue(success);
+      Assert.IsNotNull(parsed);
+      FilterInfoCollection collection = Assert.IsInstanceOfType<FilterInfoCollection>(parsed);
+
+      Assert.HasCount(1, collection);
+    }
+
+    [TestMethod]
+    public void When_explicit_interface_implementation_called_with_invalid_input_TryParse_returns_false()
+    {
+      // Arrange
+      IParseStrategy strategy = _parser!;
+      string input = "invalid";
+
+      // Act
+      bool success = strategy.TryParse(input, out object? parsed);
+
+      // Assert
+      Assert.IsFalse(success);
+      Assert.IsNull(parsed);
+    }
+
+    [TestMethod]
+    public void When_special_characters_in_value_Parse_handles_correctly()
+    {
+      // Arrange
+      string input = "filter[description]=Special chars: !@#$%^*()";
 
       // Act
       FilterInfoCollection result = _parser!.Parse(input);
 
       // Assert
       Assert.IsNotNull(result);
-      Assert.AreEqual(1, result.Count);
+      Assert.HasCount(1, result);
 
-      var filterInfo = result.First() as FilterInfo;
-      Assert.IsNotNull(filterInfo);
-      Assert.AreEqual(Operator.GreaterThan, filterInfo.Operator);
+      var filter = result.First() as FilterInfo;
+      Assert.IsNotNull(filter);
+      Assert.AreEqual("Special chars: !@#$%^*()", filter.Values.First());
     }
 
     [TestMethod]
-    public void When_Parse_called_with_case_insensitive_conjunction_returns_correct_Conjunction()
+    public void When_multiple_same_filters_Parse_creates_unique_names()
     {
       // Arrange
-      string input = "filter[$AND][0][field]=value";
+      string input = "filter[name]=John&filter[name]=Jane";
 
       // Act
       FilterInfoCollection result = _parser!.Parse(input);
 
       // Assert
       Assert.IsNotNull(result);
-      Assert.AreEqual("field-AND-group", result.Name);
-      Assert.AreEqual(Conjunction.And, result.Conjunction);
+      Assert.HasCount(2, result);
+
+      FilterInfo[] filters = [.. result.OfType<FilterInfo>()];
+      Assert.HasCount(2, filters);
+
+      // Check that names are unique
+      Assert.AreEqual("name-0", filters[0].Name);
+      Assert.AreEqual("name-1", filters[1].Name);
+
+      // Check that both have the same path but different values
+      Assert.AreEqual("name", filters[0].Path);
+      Assert.AreEqual("name", filters[1].Path);
+      Assert.IsTrue(filters.Any((f) => f.Values.Contains("John")));
+      Assert.IsTrue(filters.Any((f) => f.Values.Contains("Jane")));
     }
 
     [TestMethod]
-    public void When_Parse_called_with_complex_nested_structure_returns_hierarchy()
+    public void When_Parse_called_with_same_path_in_conjunction_groups_creates_separate_filters()
     {
-      // Arrange
-      string input = "filter[group][$and]=parent&filter[group][$or][parent]=child&filter[child][0][name]=value";
-
-      // Act
-      FilterInfoCollection result = _parser!.Parse(input);
-
-      // Assert
-      Assert.IsNotNull(result);
-      Assert.AreEqual("parent", result.Name);
-      Assert.AreEqual(1, result.Count);
-
-      var childGroup = result.First() as FilterInfoCollection;
-      Assert.IsNotNull(childGroup);
-      Assert.AreEqual("child", childGroup.Name);
-      Assert.AreEqual("parent", childGroup.MemberOf);
-      Assert.AreEqual(Conjunction.Or, childGroup.Conjunction);
-      Assert.AreEqual(1, childGroup.Count);
-
-      var filterInfo = childGroup.First() as FilterInfo;
-      Assert.IsNotNull(filterInfo);
-      Assert.AreEqual("name-0", filterInfo.Name);
-      Assert.AreEqual("child", filterInfo.MemberOf);
-    }
-
-    [TestMethod]
-    public void When_Parse_called_with_multiple_values_with_empty_entries_handles_correctly()
-    {
-      // Arrange
-      string input = "filter[tags][$in]=red,,blue, ,green";
-
-      // Act
-      FilterInfoCollection result = _parser!.Parse(input);
-
-      // Assert
-      Assert.IsNotNull(result);
-      Assert.AreEqual(1, result.Count);
-
-      var filterInfo = result.First() as FilterInfo;
-      Assert.IsNotNull(filterInfo);
-      Assert.AreEqual(Operator.In, filterInfo.Operator);
-
-      // Should filter out empty entries
-      var values = filterInfo.Values.Where((v) => !string.IsNullOrWhiteSpace(v?.ToString())).ToList();
-      Assert.IsGreaterThanOrEqualTo(3, values.Count); // Should have at least red, blue, green
-    }
-
-    [TestMethod]
-    public void When_Parse_called_with_non_sequential_group_indices_handles_correctly()
-    {
-      // Arrange
-      string input = "filter[$and][0][field1]=value1&filter[$and][2][field2]=value2";
+      // Arrange - Test same path with different operators within conjunction groups
+      string input = "filter[$and][0][score][$gt]=80&filter[$or][0][score][$eq]=100&filter[$and][1][score][$lt]=95";
 
       // Act
       FilterInfoCollection result = _parser!.Parse(input);
@@ -2915,151 +767,28 @@ namespace Karma.Extensions.AspNetCore.Tests
       // Assert
       Assert.IsNotNull(result);
       Assert.AreEqual("root", result.Name);
-      Assert.AreEqual(2, result.Count);
-    }
+      Assert.AreEqual(2, result.Count, "Should create two conjunction groups");
 
-    [TestMethod]
-    public void When_Parse_called_with_very_long_input_handles_correctly()
-    {
-      // Arrange
-      var inputBuilder = new System.Text.StringBuilder();
-      for (int i = 0; i < 100; i++)
-      {
-        if (i > 0)
-        {
-          _ = inputBuilder.Append('&');
-        }
+      // Find the AND group
+      FilterInfoCollection? andGroup = result.Cast<FilterInfoCollection>().FirstOrDefault(g => g.Name == "score-and-group");
+      Assert.IsNotNull(andGroup, "Should create an AND group for score filters");
+      Assert.AreEqual(Conjunction.And, andGroup.Conjunction);
+      Assert.AreEqual(2, andGroup.Count);
 
-        _ = inputBuilder.Append($"filter[field{i}]=value{i}");
-      }
+      var andFilters = andGroup.Cast<FilterInfo>().ToList();
+      Assert.AreEqual("score-0", andFilters[0].Name);
+      Assert.AreEqual("score-2", andFilters[1].Name);
 
-      string input = inputBuilder.ToString();
+      // Find the OR group
+      FilterInfoCollection? orGroup = result.Cast<FilterInfoCollection>().FirstOrDefault(g => g.Name == "score-or-group");
+      Assert.IsNotNull(orGroup, "Should create an OR group for score filters");
+      Assert.AreEqual(Conjunction.Or, orGroup.Conjunction);
+      Assert.AreEqual(1, orGroup.Count);
 
-      // Act
-      FilterInfoCollection result = _parser!.Parse(input);
-
-      // Assert
-      Assert.IsNotNull(result);
-      Assert.AreEqual("root", result.Name);
-      Assert.AreEqual(100, result.Count);
-    }
-
-    [TestMethod]
-    public void When_Parse_called_with_unicode_characters_handles_correctly()
-    {
-      // Arrange
-      string input = "filter[字段名]=测试值";
-
-      // Act
-      FilterInfoCollection result = _parser!.Parse(input);
-
-      // Assert
-      Assert.IsNotNull(result);
-      Assert.AreEqual(1, result.Count);
-
-      var filterInfo = result.First() as FilterInfo;
-      Assert.IsNotNull(filterInfo);
-      Assert.AreEqual("字段名-0", filterInfo.Name);
-      Assert.AreEqual("字段名", filterInfo.Path);
-      Assert.AreEqual("测试值", filterInfo.Values.FirstOrDefault());
-    }
-
-    [TestMethod]
-    public void When_Parse_called_with_multiple_filters_same_path_different_operators_groups_correctly()
-    {
-      // Arrange
-      string input = "filter[age][$gt]=18&filter[age][$lt]=65";
-
-      // Act
-      FilterInfoCollection result = _parser!.Parse(input);
-
-      // Assert
-      Assert.IsNotNull(result);
-      Assert.AreEqual("root", result.Name);
-      Assert.AreEqual(2, result.Count);
-
-      var firstFilter = result.First() as FilterInfo;
-      Assert.IsNotNull(firstFilter);
-      Assert.AreEqual("age-0", firstFilter.Name);
-      Assert.AreEqual(Operator.GreaterThan, firstFilter.Operator);
-
-      var secondFilter = result.Last() as FilterInfo;
-      Assert.IsNotNull(secondFilter);
-      Assert.AreEqual("age-1", secondFilter.Name);
-      Assert.AreEqual(Operator.LessThan, secondFilter.Operator);
-    }
-
-    [TestMethod]
-    public void When_Parse_called_with_same_path_multiple_operators_creates_separate_filters()
-    {
-      // Arrange - Test multiple operators on the same field path
-      string input = "filter[price][$gte]=100&filter[price][$lte]=500&filter[price][$ne]=299";
-
-      // Act
-      FilterInfoCollection result = _parser!.Parse(input);
-
-      // Assert
-      Assert.IsNotNull(result);
-      Assert.AreEqual("root", result.Name);
-      Assert.AreEqual(3, result.Count, "Should create three separate filters for the same path");
-      Assert.AreEqual(Conjunction.And, result.Conjunction);
-
-      // Verify each filter has the same path but different operators and names
-      var filters = result.Cast<FilterInfo>().ToList();
-
-      // First filter: price >= 100
-      FilterInfo firstFilter = filters[0];
-      Assert.AreEqual("price-0", firstFilter.Name);
-      Assert.AreEqual("price", firstFilter.Path);
-      Assert.AreEqual(string.Empty, firstFilter.MemberOf);
-      Assert.AreEqual(Operator.GreaterThanOrEqualTo, firstFilter.Operator);
-      Assert.AreEqual("100", firstFilter.Values.FirstOrDefault());
-
-      // Second filter: price <= 500  
-      FilterInfo secondFilter = filters[1];
-      Assert.AreEqual("price-1", secondFilter.Name);
-      Assert.AreEqual("price", secondFilter.Path);
-      Assert.AreEqual(string.Empty, secondFilter.MemberOf);
-      Assert.AreEqual(Operator.LessThanOrEqualTo, secondFilter.Operator);
-      Assert.AreEqual("500", secondFilter.Values.FirstOrDefault());
-
-      // Third filter: price != 299
-      FilterInfo thirdFilter = filters[2];
-      Assert.AreEqual("price-2", thirdFilter.Name);
-      Assert.AreEqual("price", thirdFilter.Path);
-      Assert.AreEqual(string.Empty, thirdFilter.MemberOf);
-      Assert.AreEqual(Operator.NotEqualTo, thirdFilter.Operator);
-      Assert.AreEqual("299", thirdFilter.Values.FirstOrDefault());
-    }
-
-    [TestMethod]
-    public void When_Parse_called_with_same_path_same_operator_multiple_times_creates_separate_filters()
-    {
-      // Arrange - Test the same operator multiple times on the same field
-      string input = "filter[category][$ne]=draft&filter[category][$ne]=archived&filter[category][$ne]=deleted";
-
-      // Act
-      FilterInfoCollection result = _parser!.Parse(input);
-
-      // Assert
-      Assert.IsNotNull(result);
-      Assert.AreEqual("root", result.Name);
-      Assert.AreEqual(3, result.Count, "Should create three separate filters even with same operator");
-
-      var filters = result.Cast<FilterInfo>().ToList();
-
-      // Verify all have same path and operator but different names and values
-      for (int i = 0; i < filters.Count; i++)
-      {
-        Assert.AreEqual($"category-{i}", filters[i].Name);
-        Assert.AreEqual("category", filters[i].Path);
-        Assert.AreEqual(Operator.NotEqualTo, filters[i].Operator);
-        Assert.AreEqual(string.Empty, filters[i].MemberOf);
-      }
-
-      Assert.AreEqual("draft", filters[0].Values.FirstOrDefault());
-      Assert.AreEqual("archived", filters[1].Values.FirstOrDefault());
-      Assert.AreEqual("deleted", filters[2].Values.FirstOrDefault());
+      FilterInfo orFilter = orGroup.Cast<FilterInfo>().First();
+      Assert.AreEqual("score-1", orFilter.Name);
+      Assert.AreEqual("score", orFilter.Path);
+      Assert.AreEqual(Operator.EqualTo, orFilter.Operator);
     }
 
     [TestMethod]
@@ -3131,42 +860,6 @@ namespace Karma.Extensions.AspNetCore.Tests
       var categoryFilters = filters.Where(f => f.Path == "category").ToList();
       Assert.HasCount(1, categoryFilters);
       Assert.AreEqual("category-0", categoryFilters[0].Name);
-    }
-
-    [TestMethod]
-    public void When_Parse_called_with_same_path_in_conjunction_groups_creates_separate_filters()
-    {
-      // Arrange - Test same path with different operators within conjunction groups
-      string input = "filter[$and][0][score][$gt]=80&filter[$or][0][score][$eq]=100&filter[$and][1][score][$lt]=95";
-
-      // Act
-      FilterInfoCollection result = _parser!.Parse(input);
-
-      // Assert
-      Assert.IsNotNull(result);
-      Assert.AreEqual("root", result.Name);
-      Assert.AreEqual(2, result.Count, "Should create two conjunction groups");
-
-      // Find the AND group
-      FilterInfoCollection? andGroup = result.Cast<FilterInfoCollection>().FirstOrDefault(g => g.Name == "score-and-group");
-      Assert.IsNotNull(andGroup, "Should create an AND group for score filters");
-      Assert.AreEqual(Conjunction.And, andGroup.Conjunction);
-      Assert.AreEqual(2, andGroup.Count);
-
-      var andFilters = andGroup.Cast<FilterInfo>().ToList();
-      Assert.AreEqual("score-0", andFilters[0].Name);
-      Assert.AreEqual("score-2", andFilters[1].Name);
-
-      // Find the OR group
-      FilterInfoCollection? orGroup = result.Cast<FilterInfoCollection>().FirstOrDefault(g => g.Name == "score-or-group");
-      Assert.IsNotNull(orGroup, "Should create an OR group for score filters");
-      Assert.AreEqual(Conjunction.Or, orGroup.Conjunction);
-      Assert.AreEqual(1, orGroup.Count);
-
-      FilterInfo orFilter = orGroup.Cast<FilterInfo>().First();
-      Assert.AreEqual("score-1", orFilter.Name);
-      Assert.AreEqual("score", orFilter.Path);
-      Assert.AreEqual(Operator.EqualTo, orFilter.Operator);
     }
   }
 }

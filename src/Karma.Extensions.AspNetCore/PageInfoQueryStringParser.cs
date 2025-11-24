@@ -33,7 +33,7 @@ namespace Karma.Extensions.AspNetCore
     public string ParameterKey
     {
       get;
-    } = QueryParameterNames.PageInfo;
+    } = QueryParameterNames.Page;
 
     /// <inheritdoc />
     public PageInfo Parse(string input)

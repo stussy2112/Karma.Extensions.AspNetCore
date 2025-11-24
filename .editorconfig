@@ -180,6 +180,10 @@ dotnet_diagnostic.CA1055.severity                                         = erro
 dotnet_diagnostic.CA1056.severity                                         = error
 # Types should not extend certain base types
 dotnet_diagnostic.CA1058.severity                                         = error
+# Expression value is never used
+dotnet_diagnostic.IDE0058.severity                                        = warning
+# Unnecessary assignment of a value
+dotnet_diagnostic.IDE0059.severity                                        = warning
 # Validate arguments of public methods
 dotnet_diagnostic.CA1062.severity                                         = warning
 # Implement IDisposable Correctly
@@ -281,8 +285,8 @@ csharp_style_prefer_index_operator                                        = true
 csharp_style_prefer_range_operator                                        = true : suggestion
 csharp_style_implicit_object_creation_when_type_is_apparent               = false : suggestion
 csharp_style_prefer_tuple_swap                                            = true : suggestion
-csharp_style_unused_value_assignment_preference                           = discard_variable : suggestion
-csharp_style_unused_value_expression_statement_preference                 = discard_variable : suggestion
+csharp_style_unused_value_assignment_preference                           = discard_variable : warning
+csharp_style_unused_value_expression_statement_preference                 = discard_variable : warning
 
 # "Null" checking preferences
 csharp_style_prefer_null_check_over_type_check                            = true : suggestion
@@ -330,7 +334,7 @@ csharp_blank_lines_around_region                                          = true
 csharp_blank_lines_around_property                                        = true
 
 # Wrapping settings
-csharp_preserve_single_line_blocks                                        = false
+csharp_preserve_single_line_blocks                                        = true
 csharp_preserve_single_line_statements                                    = false
 
 # Indentation settings
@@ -373,6 +377,7 @@ dotnet_diagnostic.CS0649.severity                                        = none
 dotnet_diagnostic.CA1051.severity                                        = none
 dotnet_diagnostic.CA1819.severity                                        = none
 dotnet_diagnostic.CA1822.severity                                        = none
+dotnet_diagnostic.IDE0079.severity                                       = none
 
 [*.vb]
 visual_basic_preferred_modifier_order = Partial,Default,Private,Protected,Public,Friend,NotOverridable,Overridable,MustOverride,Overloads,Overrides,MustInherit,NotInheritable,Static,Shared,Shadows,ReadOnly,WriteOnly,Dim,Const,WithEvents,Widening,Narrowing,Custom,Async:suggestion:suggestion
