@@ -77,7 +77,6 @@ steps:
   displayName: 'Publish Test Results'
   inputs:
     testResultsFormat: 'VSTest'
-    testResultsFiles: '**/*.trx'
     testResultsFiles: '$(Agent.TempDirectory)/**/*.trx'
     mergeTestResults: true
 
