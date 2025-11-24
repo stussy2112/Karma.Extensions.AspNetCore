@@ -49,7 +49,7 @@ namespace Karma.Extensions.AspNetCore
     /// Generates a compiled regex for the default filter pattern using source generation.
     /// </summary>
     /// <returns>A compiled <see cref="Regex"/> instance optimized for the default filter pattern.</returns>
-    [GeneratedRegex(DefaultFilterPattern, RegExConstants.RegExOptions | RegexOptions.IgnoreCase, RegExConstants.Culture)]
+    [GeneratedRegex(DefaultFilterPattern, RegExConstants.RegExOptions | RegexOptions.IgnoreCase, RegExConstants.MatchTimeoutMilliseconds, RegExConstants.Culture)]
     private static partial Regex GetDefaultFilterRegex();
 
     /// <summary>

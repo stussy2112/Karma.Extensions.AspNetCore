@@ -4,6 +4,7 @@
 // </copyright>
 // -----------------------------------------------------------------------
 
+using System;
 using System.Text.RegularExpressions;
 
 namespace Karma.Extensions.AspNetCore
@@ -12,5 +13,7 @@ namespace Karma.Extensions.AspNetCore
   {
     public const string Culture = "en-US";
     public const RegexOptions RegExOptions = RegexOptions.IgnorePatternWhitespace | RegexOptions.ExplicitCapture | RegexOptions.Compiled;
+    public const int MatchTimeoutMilliseconds = 150;
+    public static readonly TimeSpan MatchTimeout = TimeSpan.FromMilliseconds(MatchTimeoutMilliseconds);
   }
 }

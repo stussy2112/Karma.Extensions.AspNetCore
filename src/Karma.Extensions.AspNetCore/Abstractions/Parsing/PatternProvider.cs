@@ -66,6 +66,6 @@ namespace Karma.Extensions.AspNetCore
     /// </summary>
     /// <remarks>The regular expression is constructed using the <c>Pattern</c> and predefined options from
     /// <see cref="RegExConstants.RegExOptions"/>.</remarks>
-    public virtual Regex RegularExpression => new Regex(Pattern, RegExConstants.RegExOptions | RegexOptions.IgnoreCase);
+    public virtual Regex RegularExpression => new Regex(Pattern, RegExConstants.RegExOptions | RegexOptions.IgnoreCase, RegExConstants.MatchTimeout);
   }
 }

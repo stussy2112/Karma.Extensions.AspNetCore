@@ -64,7 +64,7 @@ steps:
   inputs:
     command: 'test'
     projects: '**/*tests/**/*.csproj'
-    arguments: '--no-build --configuration $(BuildConfiguration) --coverage --coverage-output-format cobertura --logger trx'
+    arguments: '--no-build --configuration $(BuildConfiguration) --coverage --coverage-output-format cobertura'
     testRunTitle: 'Unit Tests'
     publishTestResults: true
 
