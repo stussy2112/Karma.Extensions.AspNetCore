@@ -39,10 +39,10 @@ steps:
       sonar.scanner.skipJreProvisioning=true
 
 - task: UseDotNet@2
-  displayName: 'Use .NET SDK 8.x'
+  displayName: 'Use .NET SDK 10.x'
   inputs:
     packageType: sdk
-    version: '8.x'
+    version: '10.x'
     installationPath: $(Agent.ToolsDirectory)/dotnet
 
 - task: DotNetCoreCLI@2
