@@ -33,7 +33,7 @@ steps:
     projectName: Karma.Extensions.AspNetCore
     extraProperties: |
       sonar.exclusions=**/obj/**,**/*.dll,**/samples/**
-      sonar.cs.vscoveragexml.reportsPaths="$(Agent.TempDirectory)/**/*.coverage"
+      sonar.cs.vscoveragexml.reportsPaths="$(Agent.TempDirectory)/**/*.xml"
       sonar.cs.vstest.reportsPaths="$(Agent.TempDirectory)/**/*.trx"
       sonar.scanner.scanAll=false
       sonar.scanner.skipJreProvisioning=true
@@ -64,7 +64,7 @@ steps:
   inputs:
     command: 'test'
     projects: '**/*tests/**/*.csproj'
-    arguments: '--no-build --configuration $(BuildConfiguration) --coverage --coverage-output-format coverage,cobertura'
+    arguments: '--no-build --configuration $(BuildConfiguration) --coverage --coverage-output-format xml,cobertura'
     testRunTitle: 'Unit Tests'
     publishTestResults: true
 
