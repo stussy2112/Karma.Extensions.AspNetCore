@@ -26,7 +26,7 @@ steps:
 - task: SonarCloudPrepare@3
   displayName: 'Prepare analysis on SonarCloud'
   inputs:
-    SonarCloud: 'SonarCloud - Extensions.AspNetCore'
+    SonarCloud: 'SonarCloud'
     organization: 'azure-stussy2112'
     scannerMode: 'dotnet'
     projectKey: 'stussy2112_Karma.Extensions.AspNetCore'
