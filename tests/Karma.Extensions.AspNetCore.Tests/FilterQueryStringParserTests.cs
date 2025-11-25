@@ -13,7 +13,7 @@ namespace Karma.Extensions.AspNetCore.Tests
 {
   [TestClass]
   [ExcludeFromCodeCoverage]
-  public class FilterQueryStringParserTests
+  public partial class FilterQueryStringParserTests
   {
     private FilterQueryStringParser? _parser;
 

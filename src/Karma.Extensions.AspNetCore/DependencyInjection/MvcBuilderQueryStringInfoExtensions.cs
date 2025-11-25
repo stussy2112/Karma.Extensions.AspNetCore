@@ -5,7 +5,6 @@
 // -----------------------------------------------------------------------
 
 using System;
-using System.Collections.Generic;
 using Karma.Extensions.AspNetCore;
 using Karma.Extensions.AspNetCore.ModelBinding;
 using Karma.Extensions.AspNetCore.Mvc.ModelBinding;
@@ -15,12 +14,9 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 namespace Microsoft.AspNetCore.Builder
 {
   /// <summary>
-  /// Provides extension methods for configuring middleware to parse query string parameters related to filtering,
-  /// paging, and sorting in an ASP.NET Core application.
+  /// Provides extension methods for configuring MVC to support automatic parameter binding of filter, paging, and sorting
+  /// information from query string parameters.
   /// </summary>
-  /// <remarks>These extension methods add middleware to the application's request pipeline to process query
-  /// string parameters for filtering, paging, and sorting. The parsed information is made available for downstream
-  /// middleware or components, enabling dynamic data manipulation based on client-specified query parameters.</remarks>
   public static class MvcBuilderQueryStringInfoExtensions
   {
     /// <summary>
