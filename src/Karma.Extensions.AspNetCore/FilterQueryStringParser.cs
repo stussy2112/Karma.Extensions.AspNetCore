@@ -6,6 +6,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Text.RegularExpressions;
 
@@ -104,7 +105,7 @@ namespace Karma.Extensions.AspNetCore
     /// <see langword="null"/>. This parameter is passed uninitialized.</param>
     /// <returns><see langword="true"/> if the input string was successfully parsed into a non-empty collection of filters; 
     /// otherwise, <see langword="false"/>.</returns>
-    public bool TryParse(string input, out FilterInfoCollection? parsed)
+    public bool TryParse(string input, [NotNullWhen(true)] out FilterInfoCollection? parsed)
     {
       parsed = null;
 
@@ -163,7 +164,7 @@ namespace Karma.Extensions.AspNetCore
 
     object? IParseStrategy.Parse(string input) => Parse(input);
 
-    bool IParseStrategy.TryParse(string input, out object? parsed)
+    bool IParseStrategy.TryParse(string input, [NotNullWhen(true)] out object? parsed)
     {
       bool result = TryParse(input, out FilterInfoCollection? collection);
       parsed = collection;

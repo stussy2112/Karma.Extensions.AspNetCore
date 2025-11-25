@@ -15,7 +15,7 @@ using Microsoft.AspNetCore.Mvc.ModelBinding;
 using Microsoft.Extensions.Primitives;
 using Moq;
 
-namespace Karma.Extensions.AspNetCore.Tests.ModelBinding.Tests
+namespace Karma.Extensions.AspNetCore.Tests.ModelBinding
 {
   [ExcludeFromCodeCoverage]
   [TestClass]

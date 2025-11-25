@@ -4,6 +4,8 @@
 // </copyright>
 // -----------------------------------------------------------------------
 
+using System.Diagnostics.CodeAnalysis;
+
 namespace Karma.Extensions.AspNetCore
 {
   /// <summary>
@@ -33,6 +35,6 @@ namespace Karma.Extensions.AspNetCore
     /// <param name="parsed">When this method returns, contains the parsed object if the conversion succeeded, or <see langword="null"/> if
     /// the conversion failed.</param>
     /// <returns><see langword="true"/> if the input string was successfully parsed; otherwise, <see langword="false"/>.</returns>
-    bool TryParse(string input, out object? parsed);
+    bool TryParse(string input, [NotNullWhen(true)] out object? parsed);
   }
 }

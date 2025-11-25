@@ -45,53 +45,6 @@ namespace Karma.Extensions.AspNetCore.Tests.DependencyInjection
     }
 
     [TestMethod]
-    public void When_builder_is_null_AddFilterInfoParameterBinding_with_parseStrategy_throws_ArgumentNullException()
-    {
-      // Arrange
-      IMvcBuilder? builder = null;
-      IParseStrategy<FilterInfoCollection>? parseStrategy = null;
-
-      // Act & Assert
-      _ = Assert.ThrowsExactly<ArgumentNullException>(() => builder!.AddFilterInfoParameterBinding(parseStrategy));
-    }
-
-    [TestMethod]
-    public void When_parameterKey_is_null_AddFilterInfoParameterBinding_with_parseStrategy_throws_ArgumentException()
-    {
-      // Arrange
-      ServiceCollection services = new();
-      IMvcBuilder builder = services.AddControllers();
-      IParseStrategy<FilterInfoCollection>? parseStrategy = null;
-
-      // Act & Assert
-      _ = Assert.ThrowsExactly<ArgumentNullException>(() => builder.AddFilterInfoParameterBinding(parseStrategy, null));
-    }
-
-    [TestMethod]
-    public void When_parameterKey_is_empty_AddFilterInfoParameterBinding_with_parseStrategy_throws_ArgumentException()
-    {
-      // Arrange
-      ServiceCollection services = new();
-      IMvcBuilder builder = services.AddControllers();
-      IParseStrategy<FilterInfoCollection>? parseStrategy = null;
-
-      // Act & Assert
-      _ = Assert.ThrowsExactly<ArgumentException>(() => builder.AddFilterInfoParameterBinding(parseStrategy, string.Empty));
-    }
-
-    [TestMethod]
-    public void When_parameterKey_is_whitespace_AddFilterInfoParameterBinding_with_parseStrategy_throws_ArgumentException()
-    {
-      // Arrange
-      ServiceCollection services = new();
-      IMvcBuilder builder = services.AddControllers();
-      IParseStrategy<FilterInfoCollection>? parseStrategy = null;
-
-      // Act & Assert
-      _ = Assert.ThrowsExactly<ArgumentException>(() => builder.AddFilterInfoParameterBinding(parseStrategy, "   "));
-    }
-
-    [TestMethod]
     public void When_valid_builder_AddFilterInfoParameterBinding_with_default_parameterKey_returns_builder()
     {
       // Arrange
@@ -135,57 +88,6 @@ namespace Karma.Extensions.AspNetCore.Tests.DependencyInjection
       // Assert
       Assert.IsNotNull(result);
       Assert.AreSame(builder, result);
-    }
-
-    [TestMethod]
-    public void When_valid_builder_AddFilterInfoParameterBinding_with_parseStrategy_returns_builder()
-    {
-      // Arrange
-      ServiceCollection services = new();
-      IMvcBuilder builder = services.AddControllers();
-      IParseStrategy<FilterInfoCollection> parseStrategy = new FilterQueryStringParser();
-
-      // Act
-      IMvcBuilder result = builder.AddFilterInfoParameterBinding(parseStrategy);
-
-      // Assert
-      Assert.IsNotNull(result);
-      Assert.AreSame(builder, result);
-    }
-
-    [TestMethod]
-    public void When_valid_builder_AddFilterInfoParameterBinding_with_parseStrategy_registers_service()
-    {
-      // Arrange
-      ServiceCollection services = new();
-      IMvcBuilder builder = services.AddControllers();
-      IParseStrategy<FilterInfoCollection> parseStrategy = new FilterQueryStringParser();
-
-      // Act
-      _ = builder.AddFilterInfoParameterBinding(parseStrategy);
-
-      // Assert
-      ServiceProvider provider = services.BuildServiceProvider();
-      IParseStrategy<FilterInfoCollection>? registeredService = provider.GetService<IParseStrategy<FilterInfoCollection>>();
-      Assert.IsNotNull(registeredService);
-      Assert.AreSame(parseStrategy, registeredService);
-    }
-
-    [TestMethod]
-    public void When_valid_builder_AddFilterInfoParameterBinding_with_null_parseStrategy_registers_default_parser()
-    {
-      // Arrange
-      ServiceCollection services = new();
-      IMvcBuilder builder = services.AddControllers();
-
-      // Act
-      _ = builder.AddFilterInfoParameterBinding((IParseStrategy<FilterInfoCollection>?)null);
-
-      // Assert
-      ServiceProvider provider = services.BuildServiceProvider();
-      IParseStrategy<FilterInfoCollection>? registeredService = provider.GetService<IParseStrategy<FilterInfoCollection>>();
-      Assert.IsNotNull(registeredService);
-      _ = Assert.IsInstanceOfType<FilterQueryStringParser>(registeredService);
     }
 
     [TestMethod]
@@ -245,41 +147,6 @@ namespace Karma.Extensions.AspNetCore.Tests.DependencyInjection
       // Assert
       Assert.IsNotNull(result);
       Assert.AreSame(builder, result);
-    }
-
-    [TestMethod]
-    public void When_valid_builder_AddPagingInfoParameterBinding_with_null_parseStrategy_registers_default_parser()
-    {
-      // Arrange
-      ServiceCollection services = new();
-      IMvcBuilder builder = services.AddControllers();
-
-      // Act
-      _ = builder.AddPagingInfoParameterBinding(null);
-
-      // Assert
-      ServiceProvider provider = services.BuildServiceProvider();
-      IParseStrategy<PageInfo>? registeredService = provider.GetService<IParseStrategy<PageInfo>>();
-      Assert.IsNotNull(registeredService);
-      _ = Assert.IsInstanceOfType<PageInfoQueryStringParser>(registeredService);
-    }
-
-    [TestMethod]
-    public void When_valid_builder_AddPagingInfoParameterBinding_with_custom_parseStrategy_registers_parser()
-    {
-      // Arrange
-      ServiceCollection services = new();
-      IMvcBuilder builder = services.AddControllers();
-      IParseStrategy<PageInfo> parseStrategy = new PageInfoQueryStringParser();
-
-      // Act
-      _ = builder.AddPagingInfoParameterBinding(parseStrategy);
-
-      // Assert
-      ServiceProvider provider = services.BuildServiceProvider();
-      IParseStrategy<PageInfo>? registeredService = provider.GetService<IParseStrategy<PageInfo>>();
-      Assert.IsNotNull(registeredService);
-      Assert.AreSame(parseStrategy, registeredService);
     }
 
     [TestMethod]
@@ -373,41 +240,6 @@ namespace Karma.Extensions.AspNetCore.Tests.DependencyInjection
     }
 
     [TestMethod]
-    public void When_valid_builder_AddSortInfoParameterBinding_with_null_parseStrategy_registers_default_parser()
-    {
-      // Arrange
-      ServiceCollection services = new();
-      IMvcBuilder builder = services.AddControllers();
-
-      // Act
-      _ = builder.AddSortInfoParameterBinding(QueryParameterNames.Sort, null);
-
-      // Assert
-      ServiceProvider provider = services.BuildServiceProvider();
-      IParseStrategy<IEnumerable<SortInfo>>? registeredService = provider.GetService<IParseStrategy<IEnumerable<SortInfo>>>();
-      Assert.IsNotNull(registeredService);
-      _ = Assert.IsInstanceOfType<SortsQueryStringParser>(registeredService);
-    }
-
-    [TestMethod]
-    public void When_valid_builder_AddSortInfoParameterBinding_with_custom_parseStrategy_registers_parser()
-    {
-      // Arrange
-      ServiceCollection services = new();
-      IMvcBuilder builder = services.AddControllers();
-      IParseStrategy<IEnumerable<SortInfo>> parseStrategy = new SortsQueryStringParser();
-
-      // Act
-      _ = builder.AddSortInfoParameterBinding(QueryParameterNames.Sort, parseStrategy);
-
-      // Assert
-      ServiceProvider provider = services.BuildServiceProvider();
-      IParseStrategy<IEnumerable<SortInfo>>? registeredService = provider.GetService<IParseStrategy<IEnumerable<SortInfo>>>();
-      Assert.IsNotNull(registeredService);
-      Assert.AreSame(parseStrategy, registeredService);
-    }
-
-    [TestMethod]
     public void When_valid_builder_AddSortInfoParameterBinding_adds_DelimitedQueryStringValueProviderFactory()
     {
       // Arrange
@@ -484,10 +316,6 @@ namespace Karma.Extensions.AspNetCore.Tests.DependencyInjection
       // Assert - Page service
       IParseStrategy<PageInfo>? pageService = provider.GetService<IParseStrategy<PageInfo>>();
       Assert.IsNotNull(pageService);
-
-      // Assert - Sort service
-      IParseStrategy<IEnumerable<SortInfo>>? sortService = provider.GetService<IParseStrategy<IEnumerable<SortInfo>>>();
-      Assert.IsNotNull(sortService);
     }
 
     [TestMethod]
@@ -576,9 +404,6 @@ namespace Karma.Extensions.AspNetCore.Tests.DependencyInjection
 
       IParseStrategy<PageInfo>? pageService = provider.GetService<IParseStrategy<PageInfo>>();
       Assert.IsNotNull(pageService);
-
-      IParseStrategy<IEnumerable<SortInfo>>? sortService = provider.GetService<IParseStrategy<IEnumerable<SortInfo>>>();
-      Assert.IsNotNull(sortService);
     }
 
     [TestMethod]
@@ -616,23 +441,6 @@ namespace Karma.Extensions.AspNetCore.Tests.DependencyInjection
     }
 
     [TestMethod]
-    public void When_AddSortInfoParameterBinding_called_multiple_times_does_not_duplicate_services()
-    {
-      // Arrange
-      ServiceCollection services = new();
-      IMvcBuilder builder = services.AddControllers();
-
-      // Act
-      _ = builder.AddSortInfoParameterBinding();
-      _ = builder.AddSortInfoParameterBinding();
-
-      // Assert - Should only have one registration
-      ServiceProvider provider = services.BuildServiceProvider();
-      IEnumerable<IParseStrategy<IEnumerable<SortInfo>>> allServices = provider.GetServices<IParseStrategy<IEnumerable<SortInfo>>>();
-      Assert.AreEqual(1, allServices.Count());
-    }
-
-    [TestMethod]
     public void When_AddQueryStringInfoParameterBindings_called_multiple_times_does_not_duplicate_services()
     {
       // Arrange
@@ -651,9 +459,6 @@ namespace Karma.Extensions.AspNetCore.Tests.DependencyInjection
 
       IEnumerable<IParseStrategy<PageInfo>> pageServices = provider.GetServices<IParseStrategy<PageInfo>>();
       Assert.AreEqual(1, pageServices.Count());
-
-      IEnumerable<IParseStrategy<IEnumerable<SortInfo>>> sortServices = provider.GetServices<IParseStrategy<IEnumerable<SortInfo>>>();
-      Assert.AreEqual(1, sortServices.Count());
     }
 
     [TestMethod]
@@ -694,9 +499,315 @@ namespace Karma.Extensions.AspNetCore.Tests.DependencyInjection
 
       IParseStrategy<PageInfo>? pageService = provider.GetService<IParseStrategy<PageInfo>>();
       Assert.IsNotNull(pageService);
+    }
 
-      IParseStrategy<IEnumerable<SortInfo>>? sortService = provider.GetService<IParseStrategy<IEnumerable<SortInfo>>>();
-      Assert.IsNotNull(sortService);
+    [TestMethod]
+    public void When_builder_is_null_AddPagingInfoParameterBinding_with_pageInfoPatternProvider_throws_ArgumentNullException()
+    {
+      // Arrange
+      IMvcBuilder? builder = null;
+      PageInfoPatternProvider patternProvider = PageInfoPatternProvider.Default;
+
+      // Act & Assert
+      _ = Assert.ThrowsExactly<ArgumentNullException>(() => builder!.AddPagingInfoParameterBinding(patternProvider));
+    }
+
+    [TestMethod]
+    public void When_valid_builder_AddPagingInfoParameterBinding_with_pageInfoPatternProvider_returns_builder()
+    {
+      // Arrange
+      ServiceCollection services = new();
+      IMvcBuilder builder = services.AddControllers();
+      PageInfoPatternProvider patternProvider = PageInfoPatternProvider.Default;
+
+      // Act
+      IMvcBuilder result = builder.AddPagingInfoParameterBinding(patternProvider);
+
+      // Assert
+      Assert.IsNotNull(result);
+      Assert.AreSame(builder, result);
+    }
+
+    [TestMethod]
+    public void When_valid_builder_AddPagingInfoParameterBinding_with_custom_parameterKey_returns_builder()
+    {
+      // Arrange
+      ServiceCollection services = new();
+      IMvcBuilder builder = services.AddControllers();
+
+      // Act
+      IMvcBuilder result = builder.AddPagingInfoParameterBinding("customPage");
+
+      // Assert
+      Assert.IsNotNull(result);
+      Assert.AreSame(builder, result);
+    }
+
+    [TestMethod]
+    public void When_valid_builder_AddPagingInfoParameterBinding_with_pageInfoPatternProvider_and_custom_parameterKey_returns_builder()
+    {
+      // Arrange
+      ServiceCollection services = new();
+      IMvcBuilder builder = services.AddControllers();
+      PageInfoPatternProvider patternProvider = PageInfoPatternProvider.Default;
+
+      // Act
+      IMvcBuilder result = builder.AddPagingInfoParameterBinding(patternProvider, "customPage");
+
+      // Assert
+      Assert.IsNotNull(result);
+      Assert.AreSame(builder, result);
+    }
+
+    [TestMethod]
+    public void When_valid_builder_AddPagingInfoParameterBinding_with_default_parameterKey_adds_CompleteKeyedQueryStringValueProviderFactory()
+    {
+      // Arrange
+      ServiceCollection services = new();
+      IMvcBuilder builder = services.AddControllers();
+
+      // Act
+      _ = builder.AddPagingInfoParameterBinding();
+      ServiceProvider provider = services.BuildServiceProvider();
+
+      // Assert
+      MvcOptions? mvcOptions = provider.GetService<Microsoft.Extensions.Options.IOptions<MvcOptions>>()?.Value;
+      Assert.IsNotNull(mvcOptions);
+      Assert.IsTrue(mvcOptions.ValueProviderFactories.Any((f) => f is CompleteKeyedQueryStringValueProviderFactory));
+    }
+
+    [TestMethod]
+    public void When_valid_builder_AddPagingInfoParameterBinding_with_pageInfoPatternProvider_adds_CompleteKeyedQueryStringValueProviderFactory()
+    {
+      // Arrange
+      ServiceCollection services = new();
+      IMvcBuilder builder = services.AddControllers();
+      PageInfoPatternProvider patternProvider = PageInfoPatternProvider.Default;
+
+      // Act
+      _ = builder.AddPagingInfoParameterBinding(patternProvider);
+      ServiceProvider provider = services.BuildServiceProvider();
+
+      // Assert
+      MvcOptions? mvcOptions = provider.GetService<Microsoft.Extensions.Options.IOptions<MvcOptions>>()?.Value;
+      Assert.IsNotNull(mvcOptions);
+      Assert.IsTrue(mvcOptions.ValueProviderFactories.Any((f) => f is CompleteKeyedQueryStringValueProviderFactory));
+    }
+
+    [TestMethod]
+    public void When_valid_builder_AddPagingInfoParameterBinding_with_custom_parameterKey_adds_PageInfoModelBinderProvider()
+    {
+      // Arrange
+      ServiceCollection services = new();
+      IMvcBuilder builder = services.AddControllers();
+
+      // Act
+      _ = builder.AddPagingInfoParameterBinding("customPage");
+      ServiceProvider provider = services.BuildServiceProvider();
+
+      // Assert
+      MvcOptions? mvcOptions = provider.GetService<Microsoft.Extensions.Options.IOptions<MvcOptions>>()?.Value;
+      Assert.IsNotNull(mvcOptions);
+      Assert.IsTrue(mvcOptions.ModelBinderProviders.Any((p) => p is PageInfoModelBinderProvider));
+    }
+
+    [TestMethod]
+    public void When_valid_builder_AddPagingInfoParameterBinding_with_pageInfoPatternProvider_registers_parser_service()
+    {
+      // Arrange
+      ServiceCollection services = new();
+      IMvcBuilder builder = services.AddControllers();
+      PageInfoPatternProvider patternProvider = PageInfoPatternProvider.Default;
+
+      // Act
+      _ = builder.AddPagingInfoParameterBinding(patternProvider);
+      ServiceProvider provider = services.BuildServiceProvider();
+
+      // Assert
+      IParseStrategy<PageInfo>? pageService = provider.GetService<IParseStrategy<PageInfo>>();
+      Assert.IsNotNull(pageService);
+      _ = Assert.IsInstanceOfType<PageInfoQueryStringParser>(pageService);
+    }
+
+    [TestMethod]
+    public void When_AddPagingInfoParameterBinding_with_pageInfoPatternProvider_called_multiple_times_does_not_duplicate_services()
+    {
+      // Arrange
+      ServiceCollection services = new();
+      IMvcBuilder builder = services.AddControllers();
+      PageInfoPatternProvider patternProvider = PageInfoPatternProvider.Default;
+
+      // Act
+      _ = builder.AddPagingInfoParameterBinding(patternProvider);
+      _ = builder.AddPagingInfoParameterBinding(patternProvider);
+
+      // Assert - Should only have one registration
+      ServiceProvider provider = services.BuildServiceProvider();
+      IEnumerable<IParseStrategy<PageInfo>> allServices = provider.GetServices<IParseStrategy<PageInfo>>();
+      Assert.AreEqual(1, allServices.Count());
+    }
+
+    [TestMethod]
+    public void When_valid_builder_AddFilterInfoParameterBinding_with_custom_parameterKey_and_patternProvider_returns_builder()
+    {
+      // Arrange
+      ServiceCollection services = new();
+      IMvcBuilder builder = services.AddControllers();
+      FilterPatternProvider patternProvider = FilterPatternProvider.Default;
+
+      // Act
+      IMvcBuilder result = builder.AddFilterInfoParameterBinding(patternProvider, "customFilter");
+
+      // Assert
+      Assert.IsNotNull(result);
+      Assert.AreSame(builder, result);
+    }
+
+    [TestMethod]
+    public void When_valid_builder_AddFilterInfoParameterBinding_with_patternProvider_adds_CompleteKeyedQueryStringValueProviderFactory()
+    {
+      // Arrange
+      ServiceCollection services = new();
+      IMvcBuilder builder = services.AddControllers();
+      FilterPatternProvider patternProvider = FilterPatternProvider.Default;
+
+      // Act
+      _ = builder.AddFilterInfoParameterBinding(patternProvider);
+      ServiceProvider provider = services.BuildServiceProvider();
+
+      // Assert
+      MvcOptions? mvcOptions = provider.GetService<Microsoft.Extensions.Options.IOptions<MvcOptions>>()?.Value;
+      Assert.IsNotNull(mvcOptions);
+      Assert.IsTrue(mvcOptions.ValueProviderFactories.Any((f) => f is CompleteKeyedQueryStringValueProviderFactory));
+    }
+
+    [TestMethod]
+    public void When_valid_builder_AddFilterInfoParameterBinding_with_patternProvider_registers_parser_service()
+    {
+      // Arrange
+      ServiceCollection services = new();
+      IMvcBuilder builder = services.AddControllers();
+      FilterPatternProvider patternProvider = FilterPatternProvider.Default;
+
+      // Act
+      _ = builder.AddFilterInfoParameterBinding(patternProvider);
+      ServiceProvider provider = services.BuildServiceProvider();
+
+      // Assert
+      IParseStrategy<FilterInfoCollection>? filterService = provider.GetService<IParseStrategy<FilterInfoCollection>>();
+      Assert.IsNotNull(filterService);
+      _ = Assert.IsInstanceOfType<FilterQueryStringParser>(filterService);
+    }
+
+    [TestMethod]
+    public void When_AddFilterInfoParameterBinding_with_patternProvider_called_multiple_times_does_not_duplicate_services()
+    {
+      // Arrange
+      ServiceCollection services = new();
+      IMvcBuilder builder = services.AddControllers();
+      FilterPatternProvider patternProvider = FilterPatternProvider.Default;
+
+      // Act
+      _ = builder.AddFilterInfoParameterBinding(patternProvider);
+      _ = builder.AddFilterInfoParameterBinding(patternProvider);
+
+      // Assert - Should only have one registration
+      ServiceProvider provider = services.BuildServiceProvider();
+      IEnumerable<IParseStrategy<FilterInfoCollection>> allServices = provider.GetServices<IParseStrategy<FilterInfoCollection>>();
+      Assert.AreEqual(1, allServices.Count());
+    }
+
+    [TestMethod]
+    public void When_valid_builder_AddQueryStringInfoParameterBindings_with_custom_pageInfoPatternProvider_applies_pattern()
+    {
+      // Arrange
+      ServiceCollection services = new();
+      IMvcBuilder builder = services.AddControllers();
+      PageInfoPatternProvider customPatternProvider = PageInfoPatternProvider.Default;
+
+      // Act
+      _ = builder.AddQueryStringInfoParameterBinding((options) => options.PageBindingOptions.PatternProvider = customPatternProvider);
+
+      ServiceProvider provider = services.BuildServiceProvider();
+
+      // Assert
+      IParseStrategy<PageInfo>? pageService = provider.GetService<IParseStrategy<PageInfo>>();
+      Assert.IsNotNull(pageService);
+      _ = Assert.IsInstanceOfType<PageInfoQueryStringParser>(pageService);
+    }
+
+    [TestMethod]
+    public void When_valid_builder_AddQueryStringInfoParameterBindings_with_custom_filterPatternProvider_applies_pattern()
+    {
+      // Arrange
+      ServiceCollection services = new();
+      IMvcBuilder builder = services.AddControllers();
+      FilterPatternProvider customPatternProvider = FilterPatternProvider.Default;
+
+      // Act
+      _ = builder.AddQueryStringInfoParameterBinding((options) => options.FilterBindingOptions.PatternProvider = customPatternProvider);
+
+      ServiceProvider provider = services.BuildServiceProvider();
+
+      // Assert
+      IParseStrategy<FilterInfoCollection>? filterService = provider.GetService<IParseStrategy<FilterInfoCollection>>();
+      Assert.IsNotNull(filterService);
+      _ = Assert.IsInstanceOfType<FilterQueryStringParser>(filterService);
+    }
+
+    [TestMethod]
+    public void When_valid_builder_AddQueryStringInfoParameterBindings_with_custom_page_parameterKey_applies_key()
+    {
+      // Arrange
+      ServiceCollection services = new();
+      IMvcBuilder builder = services.AddControllers();
+      string customPageKey = "customPage";
+
+      // Act
+      _ = builder.AddQueryStringInfoParameterBinding((options) => options.PageBindingOptions.ParameterKey = customPageKey);
+
+      ServiceProvider provider = services.BuildServiceProvider();
+
+      // Assert
+      MvcOptions? mvcOptions = provider.GetService<Microsoft.Extensions.Options.IOptions<MvcOptions>>()?.Value;
+      Assert.IsNotNull(mvcOptions);
+
+      // Verify page value provider factory is added
+      CompleteKeyedQueryStringValueProviderFactory? pageFactory =
+        mvcOptions.ValueProviderFactories.OfType<CompleteKeyedQueryStringValueProviderFactory>()
+          .LastOrDefault();
+      Assert.IsNotNull(pageFactory);
+    }
+
+    [TestMethod]
+    public void When_all_overloads_used_together_all_services_registered_correctly()
+    {
+      // Arrange
+      ServiceCollection services = new();
+      IMvcBuilder builder = services.AddControllers();
+      FilterPatternProvider filterPattern = FilterPatternProvider.Default;
+      PageInfoPatternProvider pagePattern = PageInfoPatternProvider.Default;
+
+      // Act
+      _ = builder
+        .AddFilterInfoParameterBinding(filterPattern, "customFilter")
+        .AddPagingInfoParameterBinding(pagePattern, "customPage")
+        .AddSortInfoParameterBinding("customSort");
+
+      ServiceProvider provider = services.BuildServiceProvider();
+
+      // Assert - All services should be registered
+      IParseStrategy<FilterInfoCollection>? filterService = provider.GetService<IParseStrategy<FilterInfoCollection>>();
+      Assert.IsNotNull(filterService);
+
+      IParseStrategy<PageInfo>? pageService = provider.GetService<IParseStrategy<PageInfo>>();
+      Assert.IsNotNull(pageService);
+
+      MvcOptions? mvcOptions = provider.GetService<Microsoft.Extensions.Options.IOptions<MvcOptions>>()?.Value;
+      Assert.IsNotNull(mvcOptions);
+      Assert.IsTrue(mvcOptions.ModelBinderProviders.Any((p) => p is FilterInfoModelBinderProvider));
+      Assert.IsTrue(mvcOptions.ModelBinderProviders.Any((p) => p is PageInfoModelBinderProvider));
+      Assert.IsTrue(mvcOptions.ModelBinderProviders.Any((p) => p is SortInfoModelBinderProvider));
     }
   }
 }

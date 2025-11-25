@@ -4,7 +4,6 @@
 // </copyright>
 // -----------------------------------------------------------------------
 
-using System.Collections.Generic;
 using Karma.Extensions.AspNetCore;
 
 namespace Microsoft.AspNetCore.Builder
@@ -91,15 +90,6 @@ namespace Microsoft.AspNetCore.Builder
       /// Defaults to <see cref="QueryParameterNames.Sort"/>.
       /// </value>
       public string? ParameterKey { get; set; } = QueryParameterNames.Sort;
-
-      /// <summary>
-      /// Gets or sets the parsing strategy used to convert query string values into sort information.
-      /// </summary>
-      /// <value>
-      /// An <see cref="IParseStrategy{T}"/> implementation that parses query string values into a collection
-      /// of <see cref="SortInfo"/> instances. Defaults to a new instance of <see cref="SortsQueryStringParser"/>.
-      /// </value>
-      public IParseStrategy<IEnumerable<SortInfo>>? ParseStrategy { get; set; } = new SortsQueryStringParser();
     }
 
     /// <summary>
@@ -121,14 +111,13 @@ namespace Microsoft.AspNetCore.Builder
       public string? ParameterKey { get; set; } = QueryParameterNames.Page;
 
       /// <summary>
-      /// Gets or sets the parsing strategy used to convert query string values into page information.
+      /// Gets or sets the pattern provider used to parse page information from query strings.
       /// </summary>
       /// <value>
-      /// An <see cref="IParseStrategy{T}"/> implementation that parses query string values into a
-      /// <see cref="PageInfo"/> instance containing pagination details such as offset, limit, after, and before cursors.
-      /// Defaults to a new instance of <see cref="PageInfoQueryStringParser"/>.
+      /// A <see cref="PageInfoPatternProvider"/> instance that defines the regular expression patterns and
+      /// group names for parsing pagination components. Defaults to <see cref="PageInfoPatternProvider.Default"/>.
       /// </value>
-      public IParseStrategy<PageInfo>? ParsingStrategy { get; set; } = new PageInfoQueryStringParser();
+      public PageInfoPatternProvider PatternProvider { get; set; } = PageInfoPatternProvider.Default;
     }
   }
 }

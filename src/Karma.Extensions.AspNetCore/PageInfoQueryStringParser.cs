@@ -5,7 +5,9 @@
 // -----------------------------------------------------------------------
 
 using System;
+using System.Collections;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Text.RegularExpressions;
 
@@ -43,31 +45,10 @@ namespace Karma.Extensions.AspNetCore
         return new PageInfo();
       }
 
-      // Only unescape if needed
-      string query = input.Contains('%', StringComparison.OrdinalIgnoreCase) ? Uri.UnescapeDataString(input) : input;
-      MatchCollection matches;
-
-      try
-      {
-        matches = _patternProvider.RegularExpression.Matches(query);
-      }
-      catch (RegexMatchTimeoutException)
-      {
-        return new PageInfo();
-      }
-
-      if (matches.Count == 0)
-      {
-        return new PageInfo();
-      }
-
-      // Group by property name
-      Dictionary<string, List<Match>> matchesByPropertyName = matches.CreateGroupDictionary((m) => m.Groups.GetGroupCollectionValue(_patternProvider.PropertyGroupName));
-
-      return CreatePageInfo(matchesByPropertyName);
+      return ParseInternal(input) ?? new PageInfo();
     }
 
-    public bool TryParse(string input, out PageInfo? parsed)
+    public bool TryParse(string input, [NotNullWhen(true)] out PageInfo? parsed)
     {
       parsed = null;
 
@@ -76,16 +57,8 @@ namespace Karma.Extensions.AspNetCore
         return false;
       }
 
-      try
-      {
-        parsed = Parse(input);
-      }
-      catch (Exception)
-      {
-        return false;
-      }
-
-      return true;
+      parsed = ParseInternal(input);
+      return parsed is not null;
     }
 
     private PageInfo CreatePageInfo(Dictionary<string, List<Match>> matchesByPropertyName)
@@ -113,11 +86,37 @@ namespace Karma.Extensions.AspNetCore
       return new PageInfo(after, before, offset, limit);
     }
 
+    private PageInfo? ParseInternal(string input)
+    {
+      // Only unescape if needed
+      string query = input.Contains('%', StringComparison.OrdinalIgnoreCase) ? Uri.UnescapeDataString(input) : input;
+      MatchCollection matches;
+
+      try
+      {
+        matches = _patternProvider.RegularExpression.Matches(query);
+      }
+      catch (RegexMatchTimeoutException)
+      {
+        return null;
+      }
+
+      if (matches.Count == 0)
+      {
+        return null;
+      }
+
+      // Group by property name
+      Dictionary<string, List<Match>> matchesByPropertyName = matches.CreateGroupDictionary((m) => m.Groups.GetGroupCollectionValue(_patternProvider.PropertyGroupName));
+
+      return CreatePageInfo(matchesByPropertyName);
+    }
+
     /// <inheritdoc />
     object? IParseStrategy.Parse(string input) => Parse(input);
 
     /// <inheritdoc />
-    bool IParseStrategy.TryParse(string input, out object? parsed)
+    bool IParseStrategy.TryParse(string input, [NotNullWhen(true)] out object? parsed)
     {
       bool result = TryParse(input, out PageInfo? pageInfo);
       parsed = pageInfo;

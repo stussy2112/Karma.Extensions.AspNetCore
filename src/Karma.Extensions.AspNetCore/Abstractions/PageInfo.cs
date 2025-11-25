@@ -30,7 +30,7 @@ namespace Karma.Extensions.AspNetCore
     /// <param name="offset">The zero-based index of the first item to retrieve. Must be 0 or greater. Defaults to 0.</param>
     /// <param name="limit">The maximum number of items to retrieve. Must be 1 or greater. Defaults to <see cref="uint.MaxValue"/>.</param>
     internal PageInfo(string after, string before = "", uint offset = 0, uint limit = uint.MaxValue) =>
-      (After, Before, Offset, Limit) = (after, before, offset, limit < 1 ? uint.MaxValue : limit);
+      (After, Before, Offset, Limit) = (after, before, offset < 0 ? 0 : offset, limit < 1 ? uint.MaxValue : limit);
 
     /// <summary>
     /// Instantiates a new <see cref="PageInfo"/> instance.

@@ -12,7 +12,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc.ModelBinding;
 using Microsoft.Extensions.Primitives;
 
-namespace Karma.Extensions.AspNetCore.Tests.ModelBinding.Tests
+namespace Karma.Extensions.AspNetCore.Tests.ModelBinding
 {
   [ExcludeFromCodeCoverage]
   [TestClass]

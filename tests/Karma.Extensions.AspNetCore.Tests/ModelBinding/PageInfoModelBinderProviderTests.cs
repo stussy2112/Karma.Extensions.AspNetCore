@@ -8,40 +8,73 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
-using System.Threading.Tasks;
 using Karma.Extensions.AspNetCore.ModelBinding;
 using Microsoft.AspNetCore.Mvc.ModelBinding;
 using Microsoft.AspNetCore.Mvc.ModelBinding.Metadata;
 using Microsoft.Extensions.DependencyInjection;
+using Moq;
 
-namespace Karma.Extensions.AspNetCore.Tests.ModelBinding.Tests
+namespace Karma.Extensions.AspNetCore.Tests.ModelBinding
 {
   [ExcludeFromCodeCoverage]
   [TestClass]
   public class PageInfoModelBinderProviderTests
   {
     private PageInfoModelBinderProvider _provider = null!;
-    private TestModelBinderProviderContext _testContext = null!;
+    private Mock<IParseStrategy<PageInfo>> _mockParser = null!;
 
     [TestInitialize]
     public void TestInitialize()
     {
       _provider = new PageInfoModelBinderProvider();
-      _testContext = new TestModelBinderProviderContext();
+      _mockParser = new Mock<IParseStrategy<PageInfo>>();
+      _ = _mockParser.Setup((x) => x.ParameterKey).Returns("page");
+    }
+
+    [TestCleanup]
+    public void TestCleanup()
+    {
+      _provider = null!;
+      _mockParser = null!;
     }
 
     [TestMethod]
     public void When_context_is_null_GetBinder_throws_ArgumentNullException() =>
+      // Act & Assert
       _ = Assert.ThrowsExactly<ArgumentNullException>(() => _provider.GetBinder(null!));
+
+    [TestMethod]
+    public void When_context_parameter_name_is_checked_throws_ArgumentNullException_with_correct_parameter_name()
+    {
+      // Act & Assert
+      ArgumentNullException exception = Assert.ThrowsExactly<ArgumentNullException>(() => _provider.GetBinder(null!));
+      Assert.AreEqual("context", exception.ParamName);
+    }
 
     [TestMethod]
     public void When_ModelType_is_PageInfo_GetBinder_returns_PageInfoModelBinder()
     {
       // Arrange
-      _testContext.SetModelType<PageInfo>();
+      TestPageModelBinderProviderContext context = CreateContextWithParser();
+      context.SetModelType<PageInfo>();
 
       // Act
-      IModelBinder? result = _provider.GetBinder(_testContext);
+      IModelBinder? result = _provider.GetBinder(context);
+
+      // Assert
+      Assert.IsNotNull(result);
+      _ = Assert.IsInstanceOfType<PageInfoModelBinder>(result);
+    }
+
+    [TestMethod]
+    public void When_ModelType_is_nullable_PageInfo_GetBinder_returns_PageInfoModelBinder()
+    {
+      // Arrange
+      TestPageModelBinderProviderContext context = CreateContextWithParser();
+      context.SetModelType<PageInfo?>();
+
+      // Act
+      IModelBinder? result = _provider.GetBinder(context);
 
       // Assert
       Assert.IsNotNull(result);
@@ -52,37 +85,25 @@ namespace Karma.Extensions.AspNetCore.Tests.ModelBinding.Tests
     public void When_ModelType_is_not_PageInfo_GetBinder_returns_null()
     {
       // Arrange
-      _testContext.SetModelType<string>();
+      TestPageModelBinderProviderContext context = CreateContextWithParser();
+      context.SetModelType<string>();
 
       // Act
-      IModelBinder? result = _provider.GetBinder(_testContext);
+      IModelBinder? result = _provider.GetBinder(context);
 
       // Assert
       Assert.IsNull(result);
     }
 
     [TestMethod]
-    public void When_ModelType_is_derived_from_PageInfo_GetBinder_returns_PageInfoModelBinder()
-    {
-      // Arrange
-      _testContext.SetModelType<DerivedPageInfo>();
-
-      // Act
-      IModelBinder? result = _provider.GetBinder(_testContext);
-
-      // Assert
-      Assert.IsNotNull(result);
-      _ = Assert.IsInstanceOfType<PageInfoModelBinder>(result);
-    }
-
-    [TestMethod]
     public void When_ModelType_is_object_GetBinder_returns_null()
     {
       // Arrange
-      _testContext.SetModelType<object>();
+      TestPageModelBinderProviderContext context = CreateContextWithParser();
+      context.SetModelType<object>();
 
       // Act
-      IModelBinder? result = _provider.GetBinder(_testContext);
+      IModelBinder? result = _provider.GetBinder(context);
 
       // Assert
       Assert.IsNull(result);
@@ -92,235 +113,14 @@ namespace Karma.Extensions.AspNetCore.Tests.ModelBinding.Tests
     public void When_ModelType_is_int_GetBinder_returns_null()
     {
       // Arrange
-      _testContext.SetModelType<int>();
+      TestPageModelBinderProviderContext context = CreateContextWithParser();
+      context.SetModelType<int>();
 
       // Act
-      IModelBinder? result = _provider.GetBinder(_testContext);
+      IModelBinder? result = _provider.GetBinder(context);
 
       // Assert
       Assert.IsNull(result);
-    }
-
-    [TestMethod]
-    public void When_ModelType_is_nullable_PageInfo_GetBinder_returns_PageInfoModelBinder()
-    {
-      // Arrange
-      _testContext.SetModelType<PageInfo?>();
-
-      // Act
-      IModelBinder? result = _provider.GetBinder(_testContext);
-
-      // Assert
-      Assert.IsNotNull(result);
-      _ = Assert.IsInstanceOfType<PageInfoModelBinder>(result);
-    }
-
-    [TestMethod]
-    public void When_ModelType_is_generic_collection_of_PageInfo_GetBinder_returns_null()
-    {
-      // Arrange
-      _testContext.SetModelType<List<PageInfo>>();
-
-      // Act
-      IModelBinder? result = _provider.GetBinder(_testContext);
-
-      // Assert
-      Assert.IsNull(result);
-    }
-
-    [TestMethod]
-    public void When_ModelType_is_array_of_PageInfo_GetBinder_returns_null()
-    {
-      // Arrange
-      _testContext.SetModelType<PageInfo[]>();
-
-      // Act
-      IModelBinder? result = _provider.GetBinder(_testContext);
-
-      // Assert
-      Assert.IsNull(result);
-    }
-
-    [TestMethod]
-    public void When_valid_PageInfo_type_GetBinder_creates_binder_with_string_and_uint_binders()
-    {
-      // Arrange
-      _testContext.SetModelType<PageInfo>();
-
-      // Act
-      IModelBinder? result = _provider.GetBinder(_testContext);
-
-      // Assert
-      Assert.IsNotNull(result);
-      var pageInfoBinder = result as PageInfoModelBinder;
-      Assert.IsNotNull(pageInfoBinder);
-
-      // Verify that the context was used to create string and uint binders
-      Assert.AreEqual(2, _testContext.CreateBinderCallCount);
-      Assert.IsTrue(_testContext.CreatedBinderTypes.Contains(typeof(string)));
-      Assert.IsTrue(_testContext.CreatedBinderTypes.Contains(typeof(uint)));
-    }
-
-    [TestMethod]
-    public void When_called_multiple_times_with_same_context_GetBinder_returns_new_instances()
-    {
-      // Arrange
-      _testContext.SetModelType<PageInfo>();
-
-      // Act
-      IModelBinder? result1 = _provider.GetBinder(_testContext);
-      IModelBinder? result2 = _provider.GetBinder(_testContext);
-
-      // Assert
-      Assert.IsNotNull(result1);
-      Assert.IsNotNull(result2);
-      Assert.AreNotSame(result1, result2);
-      _ = Assert.IsInstanceOfType<PageInfoModelBinder>(result1);
-      _ = Assert.IsInstanceOfType<PageInfoModelBinder>(result2);
-    }
-
-    [TestMethod]
-    public void When_ModelType_implements_interface_that_PageInfo_implements_GetBinder_returns_null()
-    {
-      // Arrange
-      _testContext.SetModelType<IEquatable<PageInfo>>();
-
-      // Act
-      IModelBinder? result = _provider.GetBinder(_testContext);
-
-      // Assert
-      Assert.IsNull(result);
-    }
-
-    [TestMethod]
-    public void When_ModelType_is_base_type_of_PageInfo_GetBinder_returns_null()
-    {
-      // Arrange
-      _testContext.SetModelType<ValueType>();
-
-      // Act
-      IModelBinder? result = _provider.GetBinder(_testContext);
-
-      // Assert
-      Assert.IsNull(result);
-    }
-
-    [TestMethod]
-    public void When_context_metadata_provider_returns_different_types_GetBinder_uses_correct_metadata()
-    {
-      // Arrange
-      _testContext.SetModelType<PageInfo>();
-      _testContext.SetCustomStringMetadata("CustomStringMetadata");
-      _testContext.SetCustomUintMetadata("CustomUintMetadata");
-
-      // Act
-      IModelBinder? result = _provider.GetBinder(_testContext);
-
-      // Assert
-      Assert.IsNotNull(result);
-      _ = Assert.IsInstanceOfType<PageInfoModelBinder>(result);
-      
-      // Verify that different metadata objects were created and used
-      Assert.AreEqual(2, _testContext.CreateBinderCallCount);
-      Assert.IsTrue(_testContext.CreatedBinderTypes.Contains(typeof(string)));
-      Assert.IsTrue(_testContext.CreatedBinderTypes.Contains(typeof(uint)));
-      
-      // Verify the custom metadata was actually used
-      Assert.IsTrue(_testContext.CustomStringMetadataWasUsed);
-      Assert.IsTrue(_testContext.CustomUintMetadataWasUsed);
-    }
-
-    [TestMethod]
-    public void When_PageInfo_type_GetBinder_requests_metadata_for_string_and_uint_types()
-    {
-      // Arrange
-      _testContext.SetModelType<PageInfo>();
-
-      // Act
-      IModelBinder? result = _provider.GetBinder(_testContext);
-
-      // Assert
-      Assert.IsNotNull(result);
-      _ = Assert.IsInstanceOfType<PageInfoModelBinder>(result);
-      Assert.AreEqual(2, _testContext.GetMetadataForTypeCallCount);
-      Assert.IsTrue(_testContext.RequestedMetadataTypes.Contains(typeof(string)));
-      Assert.IsTrue(_testContext.RequestedMetadataTypes.Contains(typeof(uint)));
-    }
-
-    [TestMethod]
-    public void When_metadata_provider_throws_exception_GetBinder_propagates_exception()
-    {
-      // Arrange
-      _testContext.SetModelType<PageInfo>();
-      _testContext.SetThrowExceptionOnGetMetadata(true);
-
-      // Act & Assert
-      _ = Assert.ThrowsExactly<InvalidOperationException>(() => _provider.GetBinder(_testContext));
-    }
-
-    [TestMethod]
-    public void When_create_binder_throws_exception_GetBinder_propagates_exception()
-    {
-      // Arrange
-      _testContext.SetModelType<PageInfo>();
-      _testContext.SetThrowExceptionOnCreateBinder(true);
-
-      // Act & Assert
-      _ = Assert.ThrowsExactly<InvalidOperationException>(() => _provider.GetBinder(_testContext));
-    }
-
-    [TestMethod]
-    public void When_metadata_provider_is_null_GetBinder_throws_NullReferenceException()
-    {
-      // Arrange
-      var contextWithNullProvider = new TestModelBinderProviderContextWithNullProvider();
-      contextWithNullProvider.SetModelType<PageInfo>();
-
-      // Act & Assert
-      _ = Assert.ThrowsExactly<NullReferenceException>(() => _provider.GetBinder(contextWithNullProvider));
-    }
-
-    [TestMethod]
-    public void When_ModelType_is_generic_type_definition_GetBinder_returns_null()
-    {
-      // Arrange
-      _testContext.SetModelTypeFromType(typeof(List<>));
-
-      // Act
-      IModelBinder? result = _provider.GetBinder(_testContext);
-
-      // Assert
-      Assert.IsNull(result);
-    }
-
-    [TestMethod]
-    public void When_ModelType_is_nested_generic_with_PageInfo_GetBinder_returns_null()
-    {
-      // Arrange
-      _testContext.SetModelType<Task<PageInfo>>();
-
-      // Act
-      IModelBinder? result = _provider.GetBinder(_testContext);
-
-      // Assert
-      Assert.IsNull(result);
-    }
-
-    [TestMethod]
-    public void When_binder_creation_order_matters_GetBinder_creates_string_binder_first()
-    {
-      // Arrange
-      _testContext.SetModelType<PageInfo>();
-      _testContext.TrackBinderCreationOrder = true;
-
-      // Act
-      IModelBinder? result = _provider.GetBinder(_testContext);
-
-      // Assert
-      Assert.IsNotNull(result);
-      Assert.AreEqual(2, _testContext.CreateBinderCallCount);
-      Assert.AreEqual(typeof(string), _testContext.CreatedBinderTypes[0]);
-      Assert.AreEqual(typeof(uint), _testContext.CreatedBinderTypes[1]);
     }
 
     [TestMethod]
@@ -334,26 +134,143 @@ namespace Karma.Extensions.AspNetCore.Tests.ModelBinding.Tests
     [DataRow(typeof(decimal))]
     [DataRow(typeof(double))]
     [DataRow(typeof(float))]
-    public void When_ModelType_is_numeric_type_GetBinder_returns_null(Type numericType)
+    [DataRow(typeof(bool))]
+    [DataRow(typeof(char))]
+    public void When_ModelType_is_primitive_type_GetBinder_returns_null(Type primitiveType)
     {
       // Arrange
-      _testContext.SetModelTypeFromType(numericType);
+      TestPageModelBinderProviderContext context = CreateContextWithParser();
+      context.SetModelTypeFromType(primitiveType);
 
       // Act
-      IModelBinder? result = _provider.GetBinder(_testContext);
+      IModelBinder? result = _provider.GetBinder(context);
 
       // Assert
       Assert.IsNull(result);
     }
 
     [TestMethod]
-    public void When_ModelType_is_deeply_derived_from_PageInfo_GetBinder_returns_PageInfoModelBinder()
+    public void When_called_multiple_times_with_same_context_GetBinder_returns_new_instances()
     {
       // Arrange
-      _testContext.SetModelType<DoublyDerivedPageInfo>();
+      TestPageModelBinderProviderContext context = CreateContextWithParser();
+      context.SetModelType<PageInfo>();
 
       // Act
-      IModelBinder? result = _provider.GetBinder(_testContext);
+      IModelBinder? result1 = _provider.GetBinder(context);
+      IModelBinder? result2 = _provider.GetBinder(context);
+
+      // Assert
+      Assert.IsNotNull(result1);
+      Assert.IsNotNull(result2);
+      Assert.AreNotSame(result1, result2);
+      _ = Assert.IsInstanceOfType<PageInfoModelBinder>(result1);
+      _ = Assert.IsInstanceOfType<PageInfoModelBinder>(result2);
+    }
+
+    [TestMethod]
+    public void When_parser_service_not_registered_GetBinder_throws_InvalidOperationException()
+    {
+      // Arrange
+      TestPageModelBinderProviderContext contextWithoutParser = CreateContextWithoutParser();
+      contextWithoutParser.SetModelType<PageInfo>();
+
+      // Act & Assert
+      _ = Assert.ThrowsExactly<InvalidOperationException>(() => _provider.GetBinder(contextWithoutParser));
+    }
+
+    [TestMethod]
+    public void When_PageInfo_type_GetBinder_retrieves_parser_from_services()
+    {
+      // Arrange
+      TestPageModelBinderProviderContext context = CreateContextWithParser();
+      context.SetModelType<PageInfo>();
+
+      // Act
+      IModelBinder? result = _provider.GetBinder(context);
+
+      // Assert
+      Assert.IsNotNull(result);
+      Assert.AreEqual(1, context.GetServiceCallCount);
+      Assert.IsTrue(context.RequestedServiceTypes.Contains(typeof(IParseStrategy<PageInfo>)));
+    }
+
+    [TestMethod]
+    public void When_services_is_null_GetBinder_throws_NullReferenceException()
+    {
+      // Arrange
+      TestPageModelBinderProviderContext contextWithNullServices = CreateContextWithNullServices();
+      contextWithNullServices.SetModelType<PageInfo>();
+
+      // Act & Assert
+      _ = Assert.ThrowsExactly<NullReferenceException>(() => _provider.GetBinder(contextWithNullServices));
+    }
+
+    [TestMethod]
+    public void When_ModelType_is_derived_class_not_assignable_to_PageInfo_GetBinder_returns_null()
+    {
+      // Arrange
+      TestPageModelBinderProviderContext context = CreateContextWithParser();
+      context.SetModelType<DerivedClassNotPageInfo>();
+
+      // Act
+      IModelBinder? result = _provider.GetBinder(context);
+
+      // Assert
+      Assert.IsNull(result);
+    }
+
+    [TestMethod]
+    public void When_ModelType_is_FilterInfoCollection_GetBinder_returns_null()
+    {
+      // Arrange
+      TestPageModelBinderProviderContext context = CreateContextWithParser();
+      context.SetModelType<FilterInfoCollection>();
+
+      // Act
+      IModelBinder? result = _provider.GetBinder(context);
+
+      // Assert
+      Assert.IsNull(result);
+    }
+
+    [TestMethod]
+    public void When_ModelType_is_generic_type_definition_GetBinder_returns_null()
+    {
+      // Arrange
+      TestPageModelBinderProviderContext context = CreateContextWithParser();
+      context.SetModelTypeFromType(typeof(List<>));
+
+      // Act
+      IModelBinder? result = _provider.GetBinder(context);
+
+      // Assert
+      Assert.IsNull(result);
+    }
+
+    [TestMethod]
+    public void When_ModelType_is_nested_generic_with_PageInfo_GetBinder_returns_null()
+    {
+      // Arrange
+      TestPageModelBinderProviderContext context = CreateContextWithParser();
+      context.SetModelType<System.Threading.Tasks.Task<PageInfo>>();
+
+      // Act
+      IModelBinder? result = _provider.GetBinder(context);
+
+      // Assert
+      Assert.IsNull(result);
+    }
+
+    [TestMethod]
+    public void When_metadata_provider_is_null_GetBinder_does_not_throw()
+    {
+      // Arrange
+      TestPageModelBinderProviderContext context = CreateContextWithParserAndNullMetadataProvider();
+      context.SetModelType<PageInfo>();
+
+      // Act
+      IModelBinder? result = _provider.GetBinder(context);
 
       // Assert
       Assert.IsNotNull(result);
@@ -361,215 +278,248 @@ namespace Karma.Extensions.AspNetCore.Tests.ModelBinding.Tests
     }
 
     [TestMethod]
-    public void When_context_services_is_null_GetBinder_still_creates_binder()
+    public void When_ModelType_is_array_type_GetBinder_returns_null()
     {
       // Arrange
-      var contextWithNullServices = new TestModelBinderProviderContextWithNullServices();
-      contextWithNullServices.SetModelType<PageInfo>();
+      TestPageModelBinderProviderContext context = CreateContextWithParser();
+      context.SetModelType<PageInfo[]>();
 
       // Act
-      IModelBinder? result = _provider.GetBinder(contextWithNullServices);
+      IModelBinder? result = _provider.GetBinder(context);
+
+      // Assert
+      Assert.IsNull(result);
+    }
+
+    [TestMethod]
+    public void When_ModelType_is_List_of_PageInfo_GetBinder_returns_null()
+    {
+      // Arrange
+      TestPageModelBinderProviderContext context = CreateContextWithParser();
+      context.SetModelType<List<PageInfo>>();
+
+      // Act
+      IModelBinder? result = _provider.GetBinder(context);
+
+      // Assert
+      Assert.IsNull(result);
+    }
+
+    [TestMethod]
+    public void When_ModelType_is_IEnumerable_of_PageInfo_GetBinder_returns_null()
+    {
+      // Arrange
+      TestPageModelBinderProviderContext context = CreateContextWithParser();
+      context.SetModelType<IEnumerable<PageInfo>>();
+
+      // Act
+      IModelBinder? result = _provider.GetBinder(context);
+
+      // Assert
+      Assert.IsNull(result);
+    }
+
+    [TestMethod]
+    public void When_GetBinder_succeeds_returns_binder_with_registered_parser()
+    {
+      // Arrange
+      var parser = new PageInfoQueryStringParser();
+      var services = new ServiceCollection();
+      _ = services.AddSingleton<IParseStrategy<PageInfo>>(parser);
+      TestPageModelBinderProviderContext context = new (services.BuildServiceProvider());
+      context.SetModelType<PageInfo>();
+
+      // Act
+      IModelBinder? result = _provider.GetBinder(context);
 
       // Assert
       Assert.IsNotNull(result);
       _ = Assert.IsInstanceOfType<PageInfoModelBinder>(result);
     }
+
+    [TestMethod]
+    public void When_provider_implements_IModelBinderProvider_GetBinder_is_callable()
+    {
+      // Arrange
+      IModelBinderProvider provider = _provider;
+      TestPageModelBinderProviderContext context = CreateContextWithParser();
+      context.SetModelType<PageInfo>();
+
+      // Act
+      IModelBinder? result = provider.GetBinder(context);
+
+      // Assert
+      Assert.IsNotNull(result);
+      _ = Assert.IsInstanceOfType<PageInfoModelBinder>(result);
+    }
+
+    [TestMethod]
+    public void When_provider_created_multiple_times_instances_are_independent()
+    {
+      // Arrange
+      PageInfoModelBinderProvider provider1 = new ();
+      PageInfoModelBinderProvider provider2 = new ();
+
+      // Assert
+      Assert.IsNotNull(provider1);
+      Assert.IsNotNull(provider2);
+      Assert.AreNotSame(provider1, provider2);
+    }
+
+    [TestMethod]
+    public void When_ModelType_is_struct_not_PageInfo_GetBinder_returns_null()
+    {
+      // Arrange
+      TestPageModelBinderProviderContext context = CreateContextWithParser();
+      context.SetModelType<CustomStruct>();
+
+      // Act
+      IModelBinder? result = _provider.GetBinder(context);
+
+      // Assert
+      Assert.IsNull(result);
+    }
+
+    [TestMethod]
+    public void When_ModelType_is_interface_not_related_to_PageInfo_GetBinder_returns_null()
+    {
+      // Arrange
+      TestPageModelBinderProviderContext context = CreateContextWithParser();
+      context.SetModelType<ICustomInterface>();
+
+      // Act
+      IModelBinder? result = _provider.GetBinder(context);
+
+      // Assert
+      Assert.IsNull(result);
+    }
+
+    private TestPageModelBinderProviderContext CreateContextWithParser()
+    {
+      var services = new ServiceCollection();
+      _ = services.AddSingleton(_mockParser.Object);
+      return new TestPageModelBinderProviderContext(services.BuildServiceProvider());
+    }
+
+    private static TestPageModelBinderProviderContext CreateContextWithoutParser() => new TestPageModelBinderProviderContext(new ServiceCollection().BuildServiceProvider());
+
+    private static TestPageModelBinderProviderContext CreateContextWithNullServices() => new TestPageModelBinderProviderContext(null);
+
+    private TestPageModelBinderProviderContextWithNullMetadataProvider CreateContextWithParserAndNullMetadataProvider()
+    {
+      var services = new ServiceCollection();
+      _ = services.AddSingleton(_mockParser.Object);
+      return new TestPageModelBinderProviderContextWithNullMetadataProvider(services.BuildServiceProvider());
+    }
   }
 
   [ExcludeFromCodeCoverage]
-  public record DerivedPageInfo : PageInfo
+  public class TestPageModelBinderProviderContext : ModelBinderProviderContext
   {
-    public DerivedPageInfo() : base()
-    {
-    }
-
-    public DerivedPageInfo(string after, uint limit = uint.MaxValue) : base(after, limit)
-    {
-    }
-
-    public DerivedPageInfo(uint offset, uint limit = uint.MaxValue) : base(offset, limit)
-    {
-    }
-  }
-
-  [ExcludeFromCodeCoverage]
-  public record DoublyDerivedPageInfo : DerivedPageInfo
-  {
-    public DoublyDerivedPageInfo() : base()
-    {
-    }
-
-    public DoublyDerivedPageInfo(string after, uint limit = uint.MaxValue) : base(after, limit)
-    {
-    }
-
-    public DoublyDerivedPageInfo(uint offset, uint limit = uint.MaxValue) : base(offset, limit)
-    {
-    }
-  }
-
-  [ExcludeFromCodeCoverage]
-  public class TestModelBinderProviderContext : ModelBinderProviderContext
-  {
-    private readonly Dictionary<Type, ModelMetadata> _metadataCache = [];
-    private readonly List<Type> _createdBinderTypes = [];
-    private readonly List<Type> _requestedMetadataTypes = [];
+    private readonly IServiceProvider? _services;
+    private readonly List<Type> _requestedServiceTypes = [];
     private ModelMetadata? _metadata;
-    private string? _customStringMetadata;
-    private string? _customUintMetadata;
+    private readonly TrackingPageServiceProvider? _trackingServiceProvider;
 
-    private bool _throwExceptionOnGetMetadata;
-    private bool _throwExceptionOnCreateBinder;
-    public bool TrackBinderCreationOrder
+    public TestPageModelBinderProviderContext(IServiceProvider? services)
     {
-      get; set;
+      _services = services;
+      if (_services is not null)
+      {
+        _trackingServiceProvider = new TrackingPageServiceProvider(_services, _requestedServiceTypes);
+      }
     }
-
-    public int CreateBinderCallCount
-    {
-      get; private set;
-    }
-    public int GetMetadataForTypeCallCount
-    {
-      get; private set;
-    }
-    public IReadOnlyList<Type> CreatedBinderTypes => _createdBinderTypes.AsReadOnly();
-    public IReadOnlyList<Type> RequestedMetadataTypes => _requestedMetadataTypes.AsReadOnly();
 
     public override BindingInfo BindingInfo => new BindingInfo();
 
     public override ModelMetadata Metadata => _metadata ?? throw new InvalidOperationException("ModelMetadata not set. Call SetModelType<T>() first.");
 
-    public override IModelMetadataProvider MetadataProvider => new TestMetadataProvider(this);
+    public override IModelMetadataProvider MetadataProvider => new TestPageMetadataProvider();
 
-    public override IServiceProvider Services => CreateServiceProvider();
+    public override IServiceProvider Services
+    {
+      get
+      {
+        GetServiceCallCount++;
+        if (_trackingServiceProvider is not null)
+        {
+          return _trackingServiceProvider;
+        }
+
+        return _services ?? throw new NullReferenceException("Services is null");
+      }
+    }
+
+    public int GetServiceCallCount { get; private set; }
+
+    public IReadOnlyList<Type> RequestedServiceTypes => _requestedServiceTypes.AsReadOnly();
 
     public void SetModelType<T>() => _metadata = CreateModelMetadata(typeof(T));
 
-    public void SetCustomStringMetadata(string metadata) => _customStringMetadata = metadata;
-
-    public void SetCustomUintMetadata(string metadata) => _customUintMetadata = metadata;
-
-    public void SetThrowExceptionOnGetMetadata(bool throwException) => _throwExceptionOnGetMetadata = throwException;
-
-    public void SetThrowExceptionOnCreateBinder(bool throwException) => _throwExceptionOnCreateBinder = throwException;
-
     public void SetModelTypeFromType(Type type) => _metadata = CreateModelMetadata(type);
 
-    public bool CustomStringMetadataWasUsed
-    {
-      get; private set;
-    }
-
-    public bool CustomUintMetadataWasUsed
-    {
-      get; private set;
-    }
-
-    internal ModelMetadata GetMetadataForTypeInternal(Type type)
-    {
-      if (_throwExceptionOnGetMetadata)
-      {
-        throw new InvalidOperationException("Test exception in GetMetadataForType");
-      }
-
-      GetMetadataForTypeCallCount++;
-      _requestedMetadataTypes.Add(type);
-
-      if (!_metadataCache.TryGetValue(type, out ModelMetadata? metadata))
-      {
-        // Use custom metadata if available
-        if (type == typeof(string) && !string.IsNullOrEmpty(_customStringMetadata))
-        {
-          CustomStringMetadataWasUsed = true;
-          metadata = CreateCustomModelMetadata(type, _customStringMetadata);
-        }
-        else if (type == typeof(uint) && !string.IsNullOrEmpty(_customUintMetadata))
-        {
-          CustomUintMetadataWasUsed = true;
-          metadata = CreateCustomModelMetadata(type, _customUintMetadata);
-        }
-        else
-        {
-          metadata = CreateModelMetadata(type);
-        }
-        
-        _metadataCache[type] = metadata;
-      }
-
-      return metadata;
-    }
-
-    private static DefaultModelMetadata CreateCustomModelMetadata(Type type, string customData)
-    {
-      var identity = ModelMetadataIdentity.ForType(type);
-      var attributes = ModelAttributes.GetAttributesForType(type);
-    
-      // Create metadata with custom display name to differentiate
-      var details = new DefaultMetadataDetails(identity, attributes)
-      {
-        DisplayMetadata = new DisplayMetadata
-        {
-          DisplayName = () => customData
-        }
-      };
-
-      return new DefaultModelMetadata(
-        new TestMetadataProvider(null!),
-        new TestCompositeMetadataDetailsProvider(),
-        details);
-    }
-
-    public override IModelBinder CreateBinder(ModelMetadata metadata)
-    {
-      if (_throwExceptionOnCreateBinder)
-      {
-        throw new InvalidOperationException("Test exception in CreateBinder");
-      }
-
-      ArgumentNullException.ThrowIfNull(metadata);
-
-      CreateBinderCallCount++;
-      _createdBinderTypes.Add(metadata.ModelType);
-
-      return new TestModelBinder();
-    }
+    public override IModelBinder CreateBinder(ModelMetadata metadata) => new TestPageModelBinder();
 
     private static DefaultModelMetadata CreateModelMetadata(Type type)
     {
       var identity = ModelMetadataIdentity.ForType(type);
-
       var attributes = ModelAttributes.GetAttributesForType(type);
 
       return new DefaultModelMetadata(
-        new TestMetadataProvider(null!),
-        new TestCompositeMetadataDetailsProvider(),
+        new TestPageMetadataProvider(),
+        new TestPageCompositeMetadataDetailsProvider(),
         new DefaultMetadataDetails(identity, attributes));
     }
+  }
 
-    private static ServiceProvider CreateServiceProvider()
+  [ExcludeFromCodeCoverage]
+  public class TrackingPageServiceProvider : IServiceProvider
+  {
+    private readonly IServiceProvider _innerProvider;
+    private readonly ICollection<Type> _requestedTypes;
+
+    public TrackingPageServiceProvider(IServiceProvider innerProvider, ICollection<Type> requestedTypes)
     {
-      var services = new ServiceCollection();
-      _ = services.AddOptions();
-      return services.BuildServiceProvider();
+      _innerProvider = innerProvider;
+      _requestedTypes = requestedTypes;
+    }
+
+    public object? GetService(Type serviceType)
+    {
+      _requestedTypes.Add(serviceType);
+      return _innerProvider.GetService(serviceType);
     }
   }
 
   [ExcludeFromCodeCoverage]
-  public class TestMetadataProvider : IModelMetadataProvider
+  public class TestPageModelBinderProviderContextWithNullMetadataProvider : TestPageModelBinderProviderContext
   {
-    private readonly TestModelBinderProviderContext _context;
+    public TestPageModelBinderProviderContextWithNullMetadataProvider(IServiceProvider? services) : base(services)
+    {
+    }
 
-    public TestMetadataProvider(TestModelBinderProviderContext context) => _context = context;
-
-    public IEnumerable<ModelMetadata> GetMetadataForProperties(Type modelType) => [];
-
-    public ModelMetadata GetMetadataForType(Type modelType) => _context?.GetMetadataForTypeInternal(modelType) ??
-             throw new InvalidOperationException("TestModelBinderProviderContext not available");
+    public override IModelMetadataProvider MetadataProvider => null!;
   }
 
   [ExcludeFromCodeCoverage]
-  public class TestCompositeMetadataDetailsProvider : ICompositeMetadataDetailsProvider
+  public class TestPageMetadataProvider : IModelMetadataProvider
+  {
+    public IEnumerable<ModelMetadata> GetMetadataForProperties(Type modelType) => [];
+
+    public ModelMetadata GetMetadataForType(Type modelType)
+    {
+      var identity = ModelMetadataIdentity.ForType(modelType);
+      var attributes = ModelAttributes.GetAttributesForType(modelType);
+
+      return new DefaultModelMetadata(
+        this,
+        new TestPageCompositeMetadataDetailsProvider(),
+        new DefaultMetadataDetails(identity, attributes));
+    }
+  }
+
+  [ExcludeFromCodeCoverage]
+  public class TestPageCompositeMetadataDetailsProvider : ICompositeMetadataDetailsProvider
   {
     public void CreateBindingMetadata(BindingMetadataProviderContext context)
     {
@@ -585,25 +535,30 @@ namespace Karma.Extensions.AspNetCore.Tests.ModelBinding.Tests
   }
 
   [ExcludeFromCodeCoverage]
-  public class TestModelBinder : IModelBinder
+  public class TestPageModelBinder : IModelBinder
   {
-    public Task BindModelAsync(ModelBindingContext bindingContext)
+    public System.Threading.Tasks.Task BindModelAsync(ModelBindingContext bindingContext)
     {
       ArgumentNullException.ThrowIfNull(bindingContext);
       bindingContext.Result = ModelBindingResult.Success(null);
-      return Task.CompletedTask;
+      return System.Threading.Tasks.Task.CompletedTask;
     }
   }
 
   [ExcludeFromCodeCoverage]
-  public class TestModelBinderProviderContextWithNullProvider : TestModelBinderProviderContext
+  public class DerivedClassNotPageInfo
   {
-    public override IModelMetadataProvider MetadataProvider => null!;
+    public string Name { get; set; } = string.Empty;
   }
 
   [ExcludeFromCodeCoverage]
-  public class TestModelBinderProviderContextWithNullServices : TestModelBinderProviderContext
+  public struct CustomStruct
   {
-    public override IServiceProvider Services => null!;
+    public int Value { get; set; }
+  }
+
+  public interface ICustomInterface
+  {
+    string Name { get; }
   }
 }

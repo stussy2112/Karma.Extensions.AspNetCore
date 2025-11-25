@@ -5,38 +5,11 @@
 // -----------------------------------------------------------------------
 
 using System;
-using System.Collections.Generic;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc.ModelBinding;
-using Microsoft.Extensions.DependencyInjection;
 
 namespace Karma.Extensions.AspNetCore.ModelBinding
 {
-  /// <summary>
-  /// Provides a model binder for types related to filtering, such as <see cref="FilterInfoCollection"/> or <see
-  /// cref="IEnumerable{IFilterInfo}"/>.
-  /// </summary>
-  /// <remarks>This provider returns a <see cref="FilterInfoModelBinder"/> for models of type <see
-  /// cref="FilterInfoCollection"/> or <see cref="IEnumerable{IFilterInfo}"/>. For other types, it returns <see
-  /// langword="null"/>.</remarks>
-  public sealed class FilterInfoModelBinderProvider : IModelBinderProvider
-  {
-    /// <inheritdoc />
-    public IModelBinder? GetBinder(ModelBinderProviderContext context)
-    {
-      ArgumentNullException.ThrowIfNull(context);
-
-      Type modelType = context.Metadata.ModelType;
-      if (modelType.IsAssignableTo(typeof(FilterInfoCollection)) || modelType.IsAssignableTo(typeof(IEnumerable<IFilterInfo>)))
-      {
-        IParseStrategy<FilterInfoCollection> parser = context.Services.GetRequiredService<IParseStrategy<FilterInfoCollection>>();
-        return new FilterInfoModelBinder(parser);
-      }
-
-      return null;
-    }
-  }
-
   /// <summary>
   /// Provides model binding for <see cref="FilterInfoCollection"/> objects by parsing query string parameters.
   /// </summary>
@@ -53,11 +26,8 @@ namespace Karma.Extensions.AspNetCore.ModelBinding
     /// <param name="parser">
     /// An instance of <see cref="IParseStrategy{FilterInfoCollection}"/> used to parse the filter query string into a <see cref="FilterInfoCollection"/>.
     /// </param>
-    public FilterInfoModelBinder(IParseStrategy<FilterInfoCollection> parser)
-    {
-      ArgumentNullException.ThrowIfNull(parser);
-      _parser = parser;
-    }
+    public FilterInfoModelBinder(IParseStrategy<FilterInfoCollection> parser) =>
+      _parser = parser ?? throw new ArgumentNullException(nameof(parser));
 
     /// <inheritdoc />
     public Task BindModelAsync(ModelBindingContext bindingContext)

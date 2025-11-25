@@ -6,6 +6,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Text.RegularExpressions;
 
@@ -79,7 +80,7 @@ namespace Karma.Extensions.AspNetCore
       }
     }
 
-    public bool TryParse(string input, out IEnumerable<SortInfo>? parsed)
+    public bool TryParse(string input, [NotNullWhen(true)] out IEnumerable<SortInfo>? parsed)
     {
       parsed = null;
 
@@ -96,7 +97,7 @@ namespace Karma.Extensions.AspNetCore
     /// <inheritdoc />
     object? IParseStrategy.Parse(string input) => Parse(input);
 
-    bool IParseStrategy.TryParse(string input, out object? parsed)
+    bool IParseStrategy.TryParse(string input, [NotNullWhen(true)] out object? parsed)
     {
       bool result = TryParse(input, out IEnumerable<SortInfo>? sortInfos);
       parsed = sortInfos;

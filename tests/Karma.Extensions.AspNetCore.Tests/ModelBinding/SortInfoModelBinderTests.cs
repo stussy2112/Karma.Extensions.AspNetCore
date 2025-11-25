@@ -12,6 +12,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Karma.Extensions.AspNetCore.ModelBinding;
 using Microsoft.AspNetCore.Mvc.ModelBinding;
+using Microsoft.Extensions.Primitives;
 using Moq;
 
 namespace Karma.Extensions.AspNetCore.Tests.ModelBinding
@@ -20,59 +21,54 @@ namespace Karma.Extensions.AspNetCore.Tests.ModelBinding
   [TestClass]
   public class SortInfoModelBinderTests
   {
-    private Mock<IParseStrategy<IEnumerable<SortInfo>>> _mockParser = null!;
     private SortInfoModelBinder _sut = null!;
 
     public TestContext TestContext { get; set; }
 
     [TestInitialize]
-    public void TestInitialize()
-    {
-      _mockParser = new Mock<IParseStrategy<IEnumerable<SortInfo>>>();
-      _ = _mockParser.Setup((x) => x.ParameterKey).Returns("sort");
-      _sut = new SortInfoModelBinder(_mockParser.Object);
-    }
+    public void TestInitialize() => _sut = new SortInfoModelBinder();
 
     [TestCleanup]
-    public void TestCleanup()
-    {
-      _mockParser = null!;
-      _sut = null!;
-    }
+    public void TestCleanup() => _sut = null!;
 
     [TestMethod]
-    public void When_parser_is_null_constructor_throws_ArgumentNullException() =>
-      // Act & Assert
-      _ = Assert.ThrowsExactly<ArgumentNullException>(() => new SortInfoModelBinder(null!));
-
-    [TestMethod]
-    public void When_parser_is_valid_constructor_succeeds()
+    public void When_constructor_called_creates_valid_instance()
     {
-      // Arrange
-      var parser = new Mock<IParseStrategy<IEnumerable<SortInfo>>>();
-
       // Act
-      var binder = new SortInfoModelBinder(parser.Object);
+      SortInfoModelBinder binder = new();
 
       // Assert
       Assert.IsNotNull(binder);
     }
 
     [TestMethod]
-    public void When_created_with_valid_parser_SortInfoModelBinder_implements_IModelBinder()
+    public void When_created_SortInfoModelBinder_implements_IModelBinder()
     {
       // Act
-      var binder = new SortInfoModelBinder(_mockParser.Object);
+      SortInfoModelBinder binder = new();
 
       // Assert
       _ = Assert.IsInstanceOfType<IModelBinder>(binder);
     }
 
     [TestMethod]
+    public void When_constructor_called_multiple_times_creates_different_instances()
+    {
+      // Act
+      SortInfoModelBinder binder1 = new();
+      SortInfoModelBinder binder2 = new();
+
+      // Assert
+      Assert.IsNotNull(binder1);
+      Assert.IsNotNull(binder2);
+      Assert.AreNotSame(binder1, binder2);
+    }
+
+    [TestMethod]
     public void When_bindingContext_is_null_BindModelAsync_throws_ArgumentNullException()
     {
       // Arrange
-      var binder = new SortInfoModelBinder(_mockParser.Object);
+      SortInfoModelBinder binder = new();
 
       // Act & Assert
       AggregateException aggregateException = Assert.ThrowsExactly<AggregateException>(() =>
@@ -85,8 +81,8 @@ namespace Karma.Extensions.AspNetCore.Tests.ModelBinding
     public void When_ValueProviderResult_is_None_BindModelAsync_returns_failed_result()
     {
       // Arrange
-      var mockContext = new Mock<ModelBindingContext>();
-      var mockValueProvider = new Mock<IValueProvider>();
+      Mock<ModelBindingContext> mockContext = new();
+      Mock<IValueProvider> mockValueProvider = new();
 
       _ = mockContext.Setup((x) => x.ModelName).Returns("sort");
       _ = mockContext.Setup((x) => x.FieldName).Returns("sort");
@@ -102,34 +98,11 @@ namespace Karma.Extensions.AspNetCore.Tests.ModelBinding
     }
 
     [TestMethod]
-    public void When_parser_returns_null_BindModelAsync_returns_failed_result()
+    public void When_single_field_provided_BindModelAsync_returns_success_with_single_sort()
     {
       // Arrange
-      var mockContext = new Mock<ModelBindingContext>();
-      var mockValueProvider = new Mock<IValueProvider>();
-
-      _ = mockContext.Setup((x) => x.ModelName).Returns("sort");
-      _ = mockContext.Setup((x) => x.FieldName).Returns("sort");
-      _ = mockContext.Setup((x) => x.ValueProvider).Returns(mockValueProvider.Object);
-      _ = mockValueProvider.Setup((x) => x.GetValue(It.IsAny<string>())).Returns(new ValueProviderResult("name"));
-
-      _ = _mockParser.Setup((x) => x.Parse(It.IsAny<string>())).Returns((IEnumerable<SortInfo>)null!);
-
-      // Act
-      var task = Task.Run(() => _sut.BindModelAsync(mockContext.Object), TestContext.CancellationToken);
-      task.GetAwaiter().GetResult();
-
-      // Assert
-      mockContext.VerifySet((x) => x.Result = ModelBindingResult.Failed(), Times.Once);
-    }
-
-    [TestMethod]
-    public void When_parser_returns_valid_sortInfo_BindModelAsync_returns_success_result()
-    {
-      // Arrange
-      var mockContext = new Mock<ModelBindingContext>();
-      var mockValueProvider = new Mock<IValueProvider>();
-      List<SortInfo> parsedSortInfo = [new SortInfo("Name", ListSortDirection.Ascending)];
+      Mock<ModelBindingContext> mockContext = new();
+      Mock<IValueProvider> mockValueProvider = new();
 
       _ = mockContext.Setup((x) => x.ModelName).Returns("sort");
       _ = mockContext.Setup((x) => x.FieldName).Returns("sort");
@@ -137,31 +110,283 @@ namespace Karma.Extensions.AspNetCore.Tests.ModelBinding
       _ = mockContext.Setup((x) => x.ValueProvider).Returns(mockValueProvider.Object);
       _ = mockValueProvider.Setup((x) => x.GetValue(It.IsAny<string>())).Returns(new ValueProviderResult("name"));
 
-      _ = _mockParser.Setup((x) => x.Parse(It.IsAny<string>())).Returns(parsedSortInfo);
+      // Act
+      var task = Task.Run(() => _sut.BindModelAsync(mockContext.Object), TestContext.CancellationToken);
+      task.GetAwaiter().GetResult();
+
+      // Assert
+      mockContext.VerifySet((x) => x.Result = It.Is<ModelBindingResult>((r) =>
+        r.IsModelSet &&
+        r.Model is IEnumerable<SortInfo> &&
+        ((IEnumerable<SortInfo>)r.Model).Count() == 1 &&
+        ((IEnumerable<SortInfo>)r.Model).First().FieldName == "name" &&
+        ((IEnumerable<SortInfo>)r.Model).First().Direction == ListSortDirection.Ascending), Times.Once);
+    }
+
+    [TestMethod]
+    public void When_field_with_descending_prefix_provided_BindModelAsync_returns_descending_sort()
+    {
+      // Arrange
+      Mock<ModelBindingContext> mockContext = new();
+      Mock<IValueProvider> mockValueProvider = new();
+
+      _ = mockContext.Setup((x) => x.ModelName).Returns("sort");
+      _ = mockContext.Setup((x) => x.FieldName).Returns("sort");
+      _ = mockContext.Setup((x) => x.ModelType).Returns(typeof(IEnumerable<SortInfo>));
+      _ = mockContext.Setup((x) => x.ValueProvider).Returns(mockValueProvider.Object);
+      _ = mockValueProvider.Setup((x) => x.GetValue(It.IsAny<string>())).Returns(new ValueProviderResult("-name"));
 
       // Act
       var task = Task.Run(() => _sut.BindModelAsync(mockContext.Object), TestContext.CancellationToken);
       task.GetAwaiter().GetResult();
 
       // Assert
-      mockContext.VerifySet((x) => x.Result = It.Is<ModelBindingResult>((r) => r.IsModelSet), Times.Once);
+      mockContext.VerifySet((x) => x.Result = It.Is<ModelBindingResult>((r) =>
+        r.IsModelSet &&
+        r.Model is IEnumerable<SortInfo> &&
+        ((IEnumerable<SortInfo>)r.Model).Count() == 1 &&
+        ((IEnumerable<SortInfo>)r.Model).First().FieldName == "name" &&
+        ((IEnumerable<SortInfo>)r.Model).First().Direction == ListSortDirection.Descending), Times.Once);
+    }
+
+    [TestMethod]
+    public void When_comma_separated_fields_provided_BindModelAsync_returns_multiple_sorts()
+    {
+      // Arrange
+      Mock<ModelBindingContext> mockContext = new();
+      Mock<IValueProvider> mockValueProvider = new();
+
+      _ = mockContext.Setup((x) => x.ModelName).Returns("sort");
+      _ = mockContext.Setup((x) => x.FieldName).Returns("sort");
+      _ = mockContext.Setup((x) => x.ModelType).Returns(typeof(IEnumerable<SortInfo>));
+      _ = mockContext.Setup((x) => x.ValueProvider).Returns(mockValueProvider.Object);
+      _ = mockValueProvider.Setup((x) => x.GetValue(It.IsAny<string>())).Returns(new ValueProviderResult("name,age,email"));
+
+      // Act
+      var task = Task.Run(() => _sut.BindModelAsync(mockContext.Object), TestContext.CancellationToken);
+      task.GetAwaiter().GetResult();
+
+      // Assert
+      mockContext.VerifySet((x) => x.Result = It.Is<ModelBindingResult>((r) =>
+        r.IsModelSet &&
+        r.Model is IEnumerable<SortInfo> &&
+        ((IEnumerable<SortInfo>)r.Model).Count() == 3), Times.Once);
+    }
+
+    [TestMethod]
+    public void When_mixed_directions_provided_BindModelAsync_returns_correct_sorts()
+    {
+      // Arrange
+      Mock<ModelBindingContext> mockContext = new();
+      Mock<IValueProvider> mockValueProvider = new();
+
+      _ = mockContext.Setup((x) => x.ModelName).Returns("sort");
+      _ = mockContext.Setup((x) => x.FieldName).Returns("sort");
+      _ = mockContext.Setup((x) => x.ModelType).Returns(typeof(IEnumerable<SortInfo>));
+      _ = mockContext.Setup((x) => x.ValueProvider).Returns(mockValueProvider.Object);
+      _ = mockValueProvider.Setup((x) => x.GetValue(It.IsAny<string>())).Returns(new ValueProviderResult("name,-age,email"));
+
+      // Act
+      var task = Task.Run(() => _sut.BindModelAsync(mockContext.Object), TestContext.CancellationToken);
+      task.GetAwaiter().GetResult();
+
+      // Assert
+      mockContext.VerifySet((x) => x.Result = It.Is<ModelBindingResult>((r) =>
+        r.IsModelSet &&
+        r.Model is IEnumerable<SortInfo> &&
+        ((IEnumerable<SortInfo>)r.Model).Count() == 3 &&
+        ((IEnumerable<SortInfo>)r.Model).ElementAt(0).FieldName == "name" &&
+        ((IEnumerable<SortInfo>)r.Model).ElementAt(0).Direction == ListSortDirection.Ascending &&
+        ((IEnumerable<SortInfo>)r.Model).ElementAt(1).FieldName == "age" &&
+        ((IEnumerable<SortInfo>)r.Model).ElementAt(1).Direction == ListSortDirection.Descending &&
+        ((IEnumerable<SortInfo>)r.Model).ElementAt(2).FieldName == "email" &&
+        ((IEnumerable<SortInfo>)r.Model).ElementAt(2).Direction == ListSortDirection.Ascending), Times.Once);
+    }
+
+    [TestMethod]
+    public void When_multiple_StringValues_provided_BindModelAsync_processes_all_values()
+    {
+      // Arrange
+      Mock<ModelBindingContext> mockContext = new();
+      Mock<IValueProvider> mockValueProvider = new();
+      StringValues multipleValues = new(["name", "age", "email"]);
+
+      _ = mockContext.Setup((x) => x.ModelName).Returns("sort");
+      _ = mockContext.Setup((x) => x.FieldName).Returns("sort");
+      _ = mockContext.Setup((x) => x.ModelType).Returns(typeof(IEnumerable<SortInfo>));
+      _ = mockContext.Setup((x) => x.ValueProvider).Returns(mockValueProvider.Object);
+      _ = mockValueProvider.Setup((x) => x.GetValue(It.IsAny<string>())).Returns(new ValueProviderResult(multipleValues));
+
+      // Act
+      var task = Task.Run(() => _sut.BindModelAsync(mockContext.Object), TestContext.CancellationToken);
+      task.GetAwaiter().GetResult();
+
+      // Assert
+      mockContext.VerifySet((x) => x.Result = It.Is<ModelBindingResult>((r) =>
+        r.IsModelSet &&
+        r.Model is IEnumerable<SortInfo> &&
+        ((IEnumerable<SortInfo>)r.Model).Count() == 3), Times.Once);
+    }
+
+    [TestMethod]
+    public void When_duplicate_fields_provided_BindModelAsync_returns_unique_sorts_only()
+    {
+      // Arrange
+      Mock<ModelBindingContext> mockContext = new();
+      Mock<IValueProvider> mockValueProvider = new();
+
+      _ = mockContext.Setup((x) => x.ModelName).Returns("sort");
+      _ = mockContext.Setup((x) => x.FieldName).Returns("sort");
+      _ = mockContext.Setup((x) => x.ModelType).Returns(typeof(IEnumerable<SortInfo>));
+      _ = mockContext.Setup((x) => x.ValueProvider).Returns(mockValueProvider.Object);
+      _ = mockValueProvider.Setup((x) => x.GetValue(It.IsAny<string>())).Returns(new ValueProviderResult("name,name,name"));
+
+      // Act
+      var task = Task.Run(() => _sut.BindModelAsync(mockContext.Object), TestContext.CancellationToken);
+      task.GetAwaiter().GetResult();
+
+      // Assert
+      mockContext.VerifySet((x) => x.Result = It.Is<ModelBindingResult>((r) =>
+        r.IsModelSet &&
+        r.Model is IEnumerable<SortInfo> &&
+        ((IEnumerable<SortInfo>)r.Model).Count() == 1 &&
+        ((IEnumerable<SortInfo>)r.Model).First().FieldName == "name"), Times.Once);
+    }
+
+    [TestMethod]
+    public void When_duplicate_fields_different_directions_BindModelAsync_returns_first_occurrence()
+    {
+      // Arrange
+      Mock<ModelBindingContext> mockContext = new();
+      Mock<IValueProvider> mockValueProvider = new();
+
+      _ = mockContext.Setup((x) => x.ModelName).Returns("sort");
+      _ = mockContext.Setup((x) => x.FieldName).Returns("sort");
+      _ = mockContext.Setup((x) => x.ModelType).Returns(typeof(IEnumerable<SortInfo>));
+      _ = mockContext.Setup((x) => x.ValueProvider).Returns(mockValueProvider.Object);
+      _ = mockValueProvider.Setup((x) => x.GetValue(It.IsAny<string>())).Returns(new ValueProviderResult("name,-name"));
+
+      // Act
+      var task = Task.Run(() => _sut.BindModelAsync(mockContext.Object), TestContext.CancellationToken);
+      task.GetAwaiter().GetResult();
+
+      // Assert
+      mockContext.VerifySet((x) => x.Result = It.Is<ModelBindingResult>((r) =>
+        r.IsModelSet &&
+        r.Model is IEnumerable<SortInfo> &&
+        ((IEnumerable<SortInfo>)r.Model).Count() == 1 &&
+        ((IEnumerable<SortInfo>)r.Model).First().FieldName == "name" &&
+        ((IEnumerable<SortInfo>)r.Model).First().Direction == ListSortDirection.Ascending), Times.Once);
+    }
+
+    [TestMethod]
+    public void When_empty_string_provided_BindModelAsync_returns_success_with_empty_result()
+    {
+      // Arrange
+      Mock<ModelBindingContext> mockContext = new();
+      Mock<IValueProvider> mockValueProvider = new();
+
+      _ = mockContext.Setup((x) => x.ModelName).Returns("sort");
+      _ = mockContext.Setup((x) => x.FieldName).Returns("sort");
+      _ = mockContext.Setup((x) => x.ModelType).Returns(typeof(IEnumerable<SortInfo>));
+      _ = mockContext.Setup((x) => x.ValueProvider).Returns(mockValueProvider.Object);
+      _ = mockValueProvider.Setup((x) => x.GetValue(It.IsAny<string>())).Returns(new ValueProviderResult(string.Empty));
+
+      // Act
+      var task = Task.Run(() => _sut.BindModelAsync(mockContext.Object), TestContext.CancellationToken);
+      task.GetAwaiter().GetResult();
+
+      // Assert
+      mockContext.VerifySet((x) => x.Result = It.Is<ModelBindingResult>((r) =>
+        r.IsModelSet &&
+        r.Model is IEnumerable<SortInfo> &&
+        !((IEnumerable<SortInfo>)r.Model).Any()), Times.Once);
+    }
+
+    [TestMethod]
+    public void When_whitespace_only_provided_BindModelAsync_returns_success_with_empty_result()
+    {
+      // Arrange
+      Mock<ModelBindingContext> mockContext = new();
+      Mock<IValueProvider> mockValueProvider = new();
+
+      _ = mockContext.Setup((x) => x.ModelName).Returns("sort");
+      _ = mockContext.Setup((x) => x.FieldName).Returns("sort");
+      _ = mockContext.Setup((x) => x.ModelType).Returns(typeof(IEnumerable<SortInfo>));
+      _ = mockContext.Setup((x) => x.ValueProvider).Returns(mockValueProvider.Object);
+      _ = mockValueProvider.Setup((x) => x.GetValue(It.IsAny<string>())).Returns(new ValueProviderResult("   \t\n   "));
+
+      // Act
+      var task = Task.Run(() => _sut.BindModelAsync(mockContext.Object), TestContext.CancellationToken);
+      task.GetAwaiter().GetResult();
+
+      // Assert
+      mockContext.VerifySet((x) => x.Result = It.Is<ModelBindingResult>((r) =>
+        r.IsModelSet &&
+        r.Model is IEnumerable<SortInfo> &&
+        !((IEnumerable<SortInfo>)r.Model).Any()), Times.Once);
+    }
+
+    [TestMethod]
+    public void When_invalid_field_provided_BindModelAsync_skips_invalid_field()
+    {
+      // Arrange
+      Mock<ModelBindingContext> mockContext = new();
+      Mock<IValueProvider> mockValueProvider = new();
+
+      _ = mockContext.Setup((x) => x.ModelName).Returns("sort");
+      _ = mockContext.Setup((x) => x.FieldName).Returns("sort");
+      _ = mockContext.Setup((x) => x.ModelType).Returns(typeof(IEnumerable<SortInfo>));
+      _ = mockContext.Setup((x) => x.ValueProvider).Returns(mockValueProvider.Object);
+      _ = mockValueProvider.Setup((x) => x.GetValue(It.IsAny<string>())).Returns(new ValueProviderResult("-")); // Just a minus sign
+
+      // Act
+      var task = Task.Run(() => _sut.BindModelAsync(mockContext.Object), TestContext.CancellationToken);
+      task.GetAwaiter().GetResult();
+
+      // Assert
+      mockContext.VerifySet((x) => x.Result = It.Is<ModelBindingResult>((r) =>
+        r.IsModelSet &&
+        r.Model is IEnumerable<SortInfo> &&
+        !((IEnumerable<SortInfo>)r.Model).Any()), Times.Once);
+    }
+
+    [TestMethod]
+    public void When_mixed_valid_and_invalid_fields_BindModelAsync_returns_only_valid_fields()
+    {
+      // Arrange
+      Mock<ModelBindingContext> mockContext = new();
+      Mock<IValueProvider> mockValueProvider = new();
+
+      _ = mockContext.Setup((x) => x.ModelName).Returns("sort");
+      _ = mockContext.Setup((x) => x.FieldName).Returns("sort");
+      _ = mockContext.Setup((x) => x.ModelType).Returns(typeof(IEnumerable<SortInfo>));
+      _ = mockContext.Setup((x) => x.ValueProvider).Returns(mockValueProvider.Object);
+      _ = mockValueProvider.Setup((x) => x.GetValue(It.IsAny<string>())).Returns(new ValueProviderResult("name,-,age"));
+
+      // Act
+      var task = Task.Run(() => _sut.BindModelAsync(mockContext.Object), TestContext.CancellationToken);
+      task.GetAwaiter().GetResult();
+
+      // Assert
+      mockContext.VerifySet((x) => x.Result = It.Is<ModelBindingResult>((r) =>
+        r.IsModelSet &&
+        r.Model is IEnumerable<SortInfo> &&
+        ((IEnumerable<SortInfo>)r.Model).Count() == 2), Times.Once);
     }
 
     [TestMethod]
     public void When_ModelName_is_null_BindModelAsync_uses_FieldName()
     {
       // Arrange
-      var mockContext = new Mock<ModelBindingContext>();
-      var mockValueProvider = new Mock<IValueProvider>();
-      List<SortInfo> parsedSortInfo = [new SortInfo("Name", ListSortDirection.Ascending)];
+      Mock<ModelBindingContext> mockContext = new();
+      Mock<IValueProvider> mockValueProvider = new();
 
       _ = mockContext.Setup((x) => x.ModelName).Returns((string)null!);
       _ = mockContext.Setup((x) => x.FieldName).Returns("sortField");
       _ = mockContext.Setup((x) => x.ModelType).Returns(typeof(IEnumerable<SortInfo>));
       _ = mockContext.Setup((x) => x.ValueProvider).Returns(mockValueProvider.Object);
       _ = mockValueProvider.Setup((x) => x.GetValue("sortField")).Returns(new ValueProviderResult("name"));
-
-      _ = _mockParser.Setup((x) => x.Parse(It.IsAny<string>())).Returns(parsedSortInfo);
 
       // Act
       var task = Task.Run(() => _sut.BindModelAsync(mockContext.Object), TestContext.CancellationToken);
@@ -172,61 +397,32 @@ namespace Karma.Extensions.AspNetCore.Tests.ModelBinding
     }
 
     [TestMethod]
-    public void When_valid_sort_string_provided_BindModelAsync_calls_parser_with_correct_input()
-    {
-      // Arrange
-      var mockContext = new Mock<ModelBindingContext>();
-      var mockValueProvider = new Mock<IValueProvider>();
-      string sortString = "name,age:desc";
-      List<SortInfo> parsedSortInfo = [new SortInfo("Name", ListSortDirection.Ascending)];
-
-      _ = mockContext.Setup((x) => x.ModelName).Returns("sort");
-      _ = mockContext.Setup((x) => x.FieldName).Returns("sort");
-      _ = mockContext.Setup((x) => x.ModelType).Returns(typeof(IEnumerable<SortInfo>));
-      _ = mockContext.Setup((x) => x.ValueProvider).Returns(mockValueProvider.Object);
-      _ = mockValueProvider.Setup((x) => x.GetValue(It.IsAny<string>())).Returns(new ValueProviderResult(sortString));
-
-      _ = _mockParser.Setup((x) => x.Parse(sortString)).Returns(parsedSortInfo);
-
-      // Act
-      var task = Task.Run(() => _sut.BindModelAsync(mockContext.Object), TestContext.CancellationToken);
-      task.GetAwaiter().GetResult();
-
-      // Assert
-      _mockParser.Verify((x) => x.Parse(sortString), Times.Once);
-    }
-
-    [TestMethod]
-    public void When_ValueProviderResult_FirstValue_is_empty_string_BindModelAsync_calls_parser_with_empty_string()
+    public void When_ModelName_and_FieldName_are_both_null_BindModelAsync_uses_empty_string()
     {
       // Arrange
       Mock<ModelBindingContext> mockContext = new();
       Mock<IValueProvider> mockValueProvider = new();
-      List<SortInfo> parsedSortInfo = [new SortInfo("Name", ListSortDirection.Ascending)];
 
-      _ = mockContext.Setup((x) => x.ModelName).Returns("sort");
-      _ = mockContext.Setup((x) => x.FieldName).Returns("sort");
+      _ = mockContext.Setup((x) => x.ModelName).Returns((string)null!);
+      _ = mockContext.Setup((x) => x.FieldName).Returns((string)null!);
       _ = mockContext.Setup((x) => x.ModelType).Returns(typeof(IEnumerable<SortInfo>));
       _ = mockContext.Setup((x) => x.ValueProvider).Returns(mockValueProvider.Object);
-      _ = mockValueProvider.Setup((x) => x.GetValue(It.IsAny<string>())).Returns(new ValueProviderResult(string.Empty));
-
-      _ = _mockParser.Setup((x) => x.Parse(It.IsAny<string>())).Returns(parsedSortInfo);
+      _ = mockValueProvider.Setup((x) => x.GetValue(It.IsAny<string>())).Returns(new ValueProviderResult("name"));
 
       // Act
       var task = Task.Run(() => _sut.BindModelAsync(mockContext.Object), TestContext.CancellationToken);
       task.GetAwaiter().GetResult();
 
       // Assert
-      _mockParser.Verify((x) => x.Parse(string.Empty), Times.Once);
+      mockValueProvider.Verify((x) => x.GetValue(It.IsAny<string>()), Times.Once);
     }
 
     [TestMethod]
     public void When_ModelType_is_List_of_SortInfo_BindModelAsync_converts_result_correctly()
     {
       // Arrange
-      var mockContext = new Mock<ModelBindingContext>();
-      var mockValueProvider = new Mock<IValueProvider>();
-      List<SortInfo> parsedSortInfo = [new SortInfo("Name", ListSortDirection.Ascending)];
+      Mock<ModelBindingContext> mockContext = new();
+      Mock<IValueProvider> mockValueProvider = new();
 
       _ = mockContext.Setup((x) => x.ModelName).Returns("sort");
       _ = mockContext.Setup((x) => x.FieldName).Returns("sort");
@@ -234,23 +430,22 @@ namespace Karma.Extensions.AspNetCore.Tests.ModelBinding
       _ = mockContext.Setup((x) => x.ValueProvider).Returns(mockValueProvider.Object);
       _ = mockValueProvider.Setup((x) => x.GetValue(It.IsAny<string>())).Returns(new ValueProviderResult("name"));
 
-      _ = _mockParser.Setup((x) => x.Parse(It.IsAny<string>())).Returns(parsedSortInfo);
-
       // Act
       var task = Task.Run(() => _sut.BindModelAsync(mockContext.Object), TestContext.CancellationToken);
       task.GetAwaiter().GetResult();
 
       // Assert
-      mockContext.VerifySet((x) => x.Result = It.Is<ModelBindingResult>((r) => r.IsModelSet && r.Model is List<SortInfo>), Times.Once);
+      mockContext.VerifySet((x) => x.Result = It.Is<ModelBindingResult>((r) =>
+        r.IsModelSet &&
+        r.Model is List<SortInfo>), Times.Once);
     }
 
     [TestMethod]
     public void When_ModelType_is_array_of_SortInfo_BindModelAsync_converts_result_correctly()
     {
       // Arrange
-      var mockContext = new Mock<ModelBindingContext>();
-      var mockValueProvider = new Mock<IValueProvider>();
-      List<SortInfo> parsedSortInfo = [new SortInfo("Name", ListSortDirection.Ascending)];
+      Mock<ModelBindingContext> mockContext = new();
+      Mock<IValueProvider> mockValueProvider = new();
 
       _ = mockContext.Setup((x) => x.ModelName).Returns("sort");
       _ = mockContext.Setup((x) => x.FieldName).Returns("sort");
@@ -258,23 +453,22 @@ namespace Karma.Extensions.AspNetCore.Tests.ModelBinding
       _ = mockContext.Setup((x) => x.ValueProvider).Returns(mockValueProvider.Object);
       _ = mockValueProvider.Setup((x) => x.GetValue(It.IsAny<string>())).Returns(new ValueProviderResult("name"));
 
-      _ = _mockParser.Setup((x) => x.Parse(It.IsAny<string>())).Returns(parsedSortInfo);
-
       // Act
       var task = Task.Run(() => _sut.BindModelAsync(mockContext.Object), TestContext.CancellationToken);
       task.GetAwaiter().GetResult();
 
       // Assert
-      mockContext.VerifySet((x) => x.Result = It.Is<ModelBindingResult>((r) => r.IsModelSet && r.Model is SortInfo[]), Times.Once);
+      mockContext.VerifySet((x) => x.Result = It.Is<ModelBindingResult>((r) =>
+        r.IsModelSet &&
+        r.Model is SortInfo[]), Times.Once);
     }
 
     [TestMethod]
     public void When_ModelType_is_ICollection_of_SortInfo_BindModelAsync_converts_result_correctly()
     {
       // Arrange
-      var mockContext = new Mock<ModelBindingContext>();
-      var mockValueProvider = new Mock<IValueProvider>();
-      List<SortInfo> parsedSortInfo = [new SortInfo("Name", ListSortDirection.Ascending)];
+      Mock<ModelBindingContext> mockContext = new();
+      Mock<IValueProvider> mockValueProvider = new();
 
       _ = mockContext.Setup((x) => x.ModelName).Returns("sort");
       _ = mockContext.Setup((x) => x.FieldName).Returns("sort");
@@ -282,53 +476,96 @@ namespace Karma.Extensions.AspNetCore.Tests.ModelBinding
       _ = mockContext.Setup((x) => x.ValueProvider).Returns(mockValueProvider.Object);
       _ = mockValueProvider.Setup((x) => x.GetValue(It.IsAny<string>())).Returns(new ValueProviderResult("name"));
 
-      _ = _mockParser.Setup((x) => x.Parse(It.IsAny<string>())).Returns(parsedSortInfo);
+      // Act
+      var task = Task.Run(() => _sut.BindModelAsync(mockContext.Object), TestContext.CancellationToken);
+      task.GetAwaiter().GetResult();
+
+      // Assert
+      mockContext.VerifySet((x) => x.Result = It.Is<ModelBindingResult>((r) =>
+        r.IsModelSet &&
+        r.Model is ICollection<SortInfo>), Times.Once);
+    }
+
+    [TestMethod]
+    public void When_ModelType_is_IReadOnlyCollection_of_SortInfo_BindModelAsync_converts_result_correctly()
+    {
+      // Arrange
+      Mock<ModelBindingContext> mockContext = new();
+      Mock<IValueProvider> mockValueProvider = new();
+
+      _ = mockContext.Setup((x) => x.ModelName).Returns("sort");
+      _ = mockContext.Setup((x) => x.FieldName).Returns("sort");
+      _ = mockContext.Setup((x) => x.ModelType).Returns(typeof(IReadOnlyCollection<SortInfo>));
+      _ = mockContext.Setup((x) => x.ValueProvider).Returns(mockValueProvider.Object);
+      _ = mockValueProvider.Setup((x) => x.GetValue(It.IsAny<string>())).Returns(new ValueProviderResult("name"));
 
       // Act
       var task = Task.Run(() => _sut.BindModelAsync(mockContext.Object), TestContext.CancellationToken);
       task.GetAwaiter().GetResult();
 
       // Assert
-      mockContext.VerifySet((x) => x.Result = It.Is<ModelBindingResult>((r) => r.IsModelSet && r.Model is ICollection<SortInfo>), Times.Once);
+      mockContext.VerifySet((x) => x.Result = It.Is<ModelBindingResult>((r) =>
+        r.IsModelSet &&
+        r.Model is IReadOnlyCollection<SortInfo>), Times.Once);
     }
 
     [TestMethod]
-    public void When_complex_sort_string_provided_BindModelAsync_processes_successfully()
+    public void When_fields_with_whitespace_provided_BindModelAsync_trims_correctly()
     {
       // Arrange
-      var mockContext = new Mock<ModelBindingContext>();
-      var mockValueProvider = new Mock<IValueProvider>();
-      string complexSortString = "name,age:desc,status:asc";
-      List<SortInfo> parsedSortInfo =
-      [
-        new SortInfo("Name", ListSortDirection.Ascending),
-        new SortInfo("Age", ListSortDirection.Descending),
-        new SortInfo("Status", ListSortDirection.Ascending)
-      ];
+      Mock<ModelBindingContext> mockContext = new();
+      Mock<IValueProvider> mockValueProvider = new();
 
       _ = mockContext.Setup((x) => x.ModelName).Returns("sort");
       _ = mockContext.Setup((x) => x.FieldName).Returns("sort");
       _ = mockContext.Setup((x) => x.ModelType).Returns(typeof(IEnumerable<SortInfo>));
       _ = mockContext.Setup((x) => x.ValueProvider).Returns(mockValueProvider.Object);
-      _ = mockValueProvider.Setup((x) => x.GetValue(It.IsAny<string>())).Returns(new ValueProviderResult(complexSortString));
-
-      _ = _mockParser.Setup((x) => x.Parse(complexSortString)).Returns(parsedSortInfo);
+      _ = mockValueProvider.Setup((x) => x.GetValue(It.IsAny<string>())).Returns(new ValueProviderResult(" name , age , email "));
 
       // Act
       var task = Task.Run(() => _sut.BindModelAsync(mockContext.Object), TestContext.CancellationToken);
       task.GetAwaiter().GetResult();
 
       // Assert
-      mockContext.VerifySet((x) => x.Result = It.Is<ModelBindingResult>((r) => r.IsModelSet), Times.Once);
-      _mockParser.Verify((x) => x.Parse(complexSortString), Times.Once);
+      mockContext.VerifySet((x) => x.Result = It.Is<ModelBindingResult>((r) =>
+        r.IsModelSet &&
+        r.Model is IEnumerable<SortInfo> &&
+        ((IEnumerable<SortInfo>)r.Model).Count() == 3 &&
+        ((IEnumerable<SortInfo>)r.Model).ElementAt(0).FieldName == "name" &&
+        ((IEnumerable<SortInfo>)r.Model).ElementAt(1).FieldName == "age" &&
+        ((IEnumerable<SortInfo>)r.Model).ElementAt(2).FieldName == "email"), Times.Once);
+    }
+
+    [TestMethod]
+    public void When_empty_fields_in_comma_list_BindModelAsync_skips_empty()
+    {
+      // Arrange
+      Mock<ModelBindingContext> mockContext = new();
+      Mock<IValueProvider> mockValueProvider = new();
+
+      _ = mockContext.Setup((x) => x.ModelName).Returns("sort");
+      _ = mockContext.Setup((x) => x.FieldName).Returns("sort");
+      _ = mockContext.Setup((x) => x.ModelType).Returns(typeof(IEnumerable<SortInfo>));
+      _ = mockContext.Setup((x) => x.ValueProvider).Returns(mockValueProvider.Object);
+      _ = mockValueProvider.Setup((x) => x.GetValue(It.IsAny<string>())).Returns(new ValueProviderResult("name,,age,,,email"));
+
+      // Act
+      var task = Task.Run(() => _sut.BindModelAsync(mockContext.Object), TestContext.CancellationToken);
+      task.GetAwaiter().GetResult();
+
+      // Assert
+      mockContext.VerifySet((x) => x.Result = It.Is<ModelBindingResult>((r) =>
+        r.IsModelSet &&
+        r.Model is IEnumerable<SortInfo> &&
+        ((IEnumerable<SortInfo>)r.Model).Count() == 3), Times.Once);
     }
 
     [TestMethod]
     public void When_BindModelAsync_completes_task_is_completed_successfully()
     {
       // Arrange
-      var mockContext = new Mock<ModelBindingContext>();
-      var mockValueProvider = new Mock<IValueProvider>();
+      Mock<ModelBindingContext> mockContext = new();
+      Mock<IValueProvider> mockValueProvider = new();
 
       _ = mockContext.Setup((x) => x.ModelName).Returns("sort");
       _ = mockContext.Setup((x) => x.FieldName).Returns("sort");
@@ -344,144 +581,17 @@ namespace Karma.Extensions.AspNetCore.Tests.ModelBinding
     }
 
     [TestMethod]
-    public void When_constructor_called_multiple_times_creates_different_instances()
-    {
-      // Act
-      var binder1 = new SortInfoModelBinder(_mockParser.Object);
-      var binder2 = new SortInfoModelBinder(_mockParser.Object);
-
-      // Assert
-      Assert.IsNotNull(binder1);
-      Assert.IsNotNull(binder2);
-      Assert.AreNotSame(binder1, binder2);
-    }
-
-    [TestMethod]
-    public void When_parser_parameter_name_is_checked_throws_ArgumentNullException_with_correct_parameter_name()
-    {
-      // Act & Assert
-      ArgumentNullException exception = Assert.ThrowsExactly<ArgumentNullException>(() => new SortInfoModelBinder(null!));
-      Assert.AreEqual("parser", exception.ParamName);
-    }
-
-    [TestMethod]
-    public void When_parser_returns_empty_collection_BindModelAsync_returns_success_with_empty_result()
+    public void When_nested_field_path_provided_BindModelAsync_handles_correctly()
     {
       // Arrange
-      var mockContext = new Mock<ModelBindingContext>();
-      var mockValueProvider = new Mock<IValueProvider>();
-      List<SortInfo> emptySortInfo = [];
+      Mock<ModelBindingContext> mockContext = new();
+      Mock<IValueProvider> mockValueProvider = new();
 
       _ = mockContext.Setup((x) => x.ModelName).Returns("sort");
       _ = mockContext.Setup((x) => x.FieldName).Returns("sort");
       _ = mockContext.Setup((x) => x.ModelType).Returns(typeof(IEnumerable<SortInfo>));
       _ = mockContext.Setup((x) => x.ValueProvider).Returns(mockValueProvider.Object);
-      _ = mockValueProvider.Setup((x) => x.GetValue(It.IsAny<string>())).Returns(new ValueProviderResult(""));
-
-      _ = _mockParser.Setup((x) => x.Parse(It.IsAny<string>())).Returns(emptySortInfo);
-
-      // Act
-      var task = Task.Run(() => _sut.BindModelAsync(mockContext.Object), TestContext.CancellationToken);
-      task.GetAwaiter().GetResult();
-
-      // Assert
-      mockContext.VerifySet((x) => x.Result = It.Is<ModelBindingResult>((r) => r.IsModelSet && r.Model is IEnumerable<SortInfo> && !((IEnumerable<SortInfo>)r.Model).Any()), Times.Once);
-    }
-
-    [TestMethod]
-    public void When_ModelType_is_IReadOnlyCollection_of_SortInfo_BindModelAsync_converts_result_correctly()
-    {
-      // Arrange
-      var mockContext = new Mock<ModelBindingContext>();
-      var mockValueProvider = new Mock<IValueProvider>();
-      List<SortInfo> parsedSortInfo = [new SortInfo("Name", ListSortDirection.Ascending)];
-
-      _ = mockContext.Setup((x) => x.ModelName).Returns("sort");
-      _ = mockContext.Setup((x) => x.FieldName).Returns("sort");
-      _ = mockContext.Setup((x) => x.ModelType).Returns(typeof(IReadOnlyCollection<SortInfo>));
-      _ = mockContext.Setup((x) => x.ValueProvider).Returns(mockValueProvider.Object);
-      _ = mockValueProvider.Setup((x) => x.GetValue(It.IsAny<string>())).Returns(new ValueProviderResult("name"));
-
-      _ = _mockParser.Setup((x) => x.Parse(It.IsAny<string>())).Returns(parsedSortInfo);
-
-      // Act
-      var task = Task.Run(() => _sut.BindModelAsync(mockContext.Object), TestContext.CancellationToken);
-      task.GetAwaiter().GetResult();
-
-      // Assert
-      mockContext.VerifySet((x) => x.Result = It.Is<ModelBindingResult>((r) => r.IsModelSet && r.Model is IReadOnlyCollection<SortInfo>), Times.Once);
-    }
-
-    [TestMethod]
-    public void When_parser_is_called_Parse_method_is_invoked_not_TryParse()
-    {
-      // Arrange
-      var mockContext = new Mock<ModelBindingContext>();
-      var mockValueProvider = new Mock<IValueProvider>();
-      List<SortInfo> parsedSortInfo = [new SortInfo("Name", ListSortDirection.Ascending)];
-
-      _ = mockContext.Setup((x) => x.ModelName).Returns("sort");
-      _ = mockContext.Setup((x) => x.FieldName).Returns("sort");
-      _ = mockContext.Setup((x) => x.ModelType).Returns(typeof(IEnumerable<SortInfo>));
-      _ = mockContext.Setup((x) => x.ValueProvider).Returns(mockValueProvider.Object);
-      _ = mockValueProvider.Setup((x) => x.GetValue(It.IsAny<string>())).Returns(new ValueProviderResult("name"));
-
-      _ = _mockParser.Setup((x) => x.Parse(It.IsAny<string>())).Returns(parsedSortInfo);
-
-      // Act
-      var task = Task.Run(() => _sut.BindModelAsync(mockContext.Object), TestContext.CancellationToken);
-      task.GetAwaiter().GetResult();
-
-      // Assert
-      _mockParser.Verify((x) => x.Parse(It.IsAny<string>()), Times.Once);
-      _mockParser.Verify((x) => x.TryParse(It.IsAny<string>(), out It.Ref<IEnumerable<SortInfo>?>.IsAny), Times.Never);
-    }
-
-    [TestMethod]
-    public void When_ModelName_and_FieldName_are_both_null_BindModelAsync_uses_empty_string()
-    {
-      // Arrange
-      var mockContext = new Mock<ModelBindingContext>();
-      var mockValueProvider = new Mock<IValueProvider>();
-      List<SortInfo> parsedSortInfo = [new SortInfo("Name", ListSortDirection.Ascending)];
-
-      _ = mockContext.Setup((x) => x.ModelName).Returns((string)null!);
-      _ = mockContext.Setup((x) => x.FieldName).Returns((string)null!);
-      _ = mockContext.Setup((x) => x.ModelType).Returns(typeof(IEnumerable<SortInfo>));
-      _ = mockContext.Setup((x) => x.ValueProvider).Returns(mockValueProvider.Object);
-      _ = mockValueProvider.Setup((x) => x.GetValue(It.IsAny<string>())).Returns(new ValueProviderResult("name"));
-
-      _ = _mockParser.Setup((x) => x.Parse(It.IsAny<string>())).Returns(parsedSortInfo);
-
-      // Act
-      var task = Task.Run(() => _sut.BindModelAsync(mockContext.Object), TestContext.CancellationToken);
-      task.GetAwaiter().GetResult();
-
-      // Assert
-      mockValueProvider.Verify((x) => x.GetValue(It.IsAny<string>()), Times.Once);
-    }
-
-    [TestMethod]
-    public void When_multiple_sort_fields_provided_BindModelAsync_parses_all_correctly()
-    {
-      // Arrange
-      var mockContext = new Mock<ModelBindingContext>();
-      var mockValueProvider = new Mock<IValueProvider>();
-      string multiSortString = "name:asc,age:desc,salary:asc";
-      List<SortInfo> parsedSortInfo =
-      [
-        new SortInfo("Name", ListSortDirection.Ascending),
-        new SortInfo("Age", ListSortDirection.Descending),
-        new SortInfo("Salary", ListSortDirection.Ascending)
-      ];
-
-      _ = mockContext.Setup((x) => x.ModelName).Returns("sort");
-      _ = mockContext.Setup((x) => x.FieldName).Returns("sort");
-      _ = mockContext.Setup((x) => x.ModelType).Returns(typeof(IEnumerable<SortInfo>));
-      _ = mockContext.Setup((x) => x.ValueProvider).Returns(mockValueProvider.Object);
-      _ = mockValueProvider.Setup((x) => x.GetValue(It.IsAny<string>())).Returns(new ValueProviderResult(multiSortString));
-
-      _ = _mockParser.Setup((x) => x.Parse(multiSortString)).Returns(parsedSortInfo);
+      _ = mockValueProvider.Setup((x) => x.GetValue(It.IsAny<string>())).Returns(new ValueProviderResult("user.profile.name"));
 
       // Act
       var task = Task.Run(() => _sut.BindModelAsync(mockContext.Object), TestContext.CancellationToken);
@@ -491,37 +601,34 @@ namespace Karma.Extensions.AspNetCore.Tests.ModelBinding
       mockContext.VerifySet((x) => x.Result = It.Is<ModelBindingResult>((r) =>
         r.IsModelSet &&
         r.Model is IEnumerable<SortInfo> &&
-        ((IEnumerable<SortInfo>)r.Model).Count() == 3), Times.Once);
+        ((IEnumerable<SortInfo>)r.Model).Count() == 1 &&
+        ((IEnumerable<SortInfo>)r.Model).First().FieldName == "user.profile.name"), Times.Once);
     }
 
     [TestMethod]
-    public void When_ConvertEnumerable_returns_null_BindModelAsync_sets_result_with_null_model()
+    public void When_multiple_descending_prefixes_provided_BindModelAsync_handles_correctly()
     {
       // Arrange
-      var mockContext = new Mock<ModelBindingContext>();
-      var mockValueProvider = new Mock<IValueProvider>();
-      List<SortInfo> parsedSortInfo = [new SortInfo("Name", ListSortDirection.Ascending)];
+      Mock<ModelBindingContext> mockContext = new();
+      Mock<IValueProvider> mockValueProvider = new();
 
       _ = mockContext.Setup((x) => x.ModelName).Returns("sort");
       _ = mockContext.Setup((x) => x.FieldName).Returns("sort");
-      _ = mockContext.Setup((x) => x.ModelType).Returns(typeof(InvalidEnumerableType));
+      _ = mockContext.Setup((x) => x.ModelType).Returns(typeof(IEnumerable<SortInfo>));
       _ = mockContext.Setup((x) => x.ValueProvider).Returns(mockValueProvider.Object);
-      _ = mockValueProvider.Setup((x) => x.GetValue(It.IsAny<string>())).Returns(new ValueProviderResult("name"));
-
-      _ = _mockParser.Setup((x) => x.Parse(It.IsAny<string>())).Returns(parsedSortInfo);
+      _ = mockValueProvider.Setup((x) => x.GetValue(It.IsAny<string>())).Returns(new ValueProviderResult("--name"));
 
       // Act
       var task = Task.Run(() => _sut.BindModelAsync(mockContext.Object), TestContext.CancellationToken);
       task.GetAwaiter().GetResult();
 
       // Assert
-      mockContext.VerifySet((x) => x.Result = It.Is<ModelBindingResult>((r) => r.IsModelSet), Times.Once);
+      mockContext.VerifySet((x) => x.Result = It.Is<ModelBindingResult>((r) =>
+        r.IsModelSet &&
+        r.Model is IEnumerable<SortInfo> &&
+        ((IEnumerable<SortInfo>)r.Model).Count() == 1 &&
+        ((IEnumerable<SortInfo>)r.Model).First().FieldName == "name" &&
+        ((IEnumerable<SortInfo>)r.Model).First().Direction == ListSortDirection.Descending), Times.Once);
     }
-  }
-
-  [ExcludeFromCodeCoverage]
-  public class InvalidEnumerableType
-  {
-    public string Value { get; set; } = string.Empty;
   }
 }

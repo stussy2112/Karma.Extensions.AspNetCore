@@ -48,47 +48,31 @@ namespace Microsoft.AspNetCore.Builder
       builder.AddFilterInfoParameterBinding(new FilterQueryStringParser(filterPatternProvider), parameterKey);
 
     /// <summary>
-    /// Configures MVC to support binding of filter information from query string parameters using a custom or default
-    /// parsing strategy.
+    /// Configures the MVC pipeline to support binding paging information from query string parameters using the
+    /// specified parameter key.
     /// </summary>
-    /// <remarks>This method adds the necessary value provider and model binder to enable automatic binding of
-    /// filter information from query string parameters. It should be called during MVC setup in the application's
-    /// service configuration.</remarks>
-    /// <param name="builder">The MVC builder used to configure services and options for the application. Cannot be null.</param>
-    /// <param name="parseStrategy">An optional parsing strategy for converting query string values into a collection of filter information. If
-    /// null, a default parser is used.</param>
-    /// <param name="parameterKey">The query string key to use for filter information. Cannot be null or whitespace. Defaults to the standard
-    /// filter parameter name.</param>
-    /// <returns>The same MVC builder instance, configured to support filter information parameter binding.</returns>
-    public static IMvcBuilder AddFilterInfoParameterBinding(this IMvcBuilder builder, IParseStrategy<FilterInfoCollection>? parseStrategy, string? parameterKey = QueryParameterNames.Filter)
-    {
-      ArgumentNullException.ThrowIfNull(builder);
-      ArgumentException.ThrowIfNullOrWhiteSpace(parameterKey);
-
-      builder.Services.TryAddSingleton(parseStrategy ?? new FilterQueryStringParser());
-
-      return builder.AddMvcOptions((o) =>
-      {
-        o.ValueProviderFactories.Insert(0, new CompleteKeyedQueryStringValueProviderFactory(parameterKey));
-        o.ModelBinderProviders.Insert(0, new FilterInfoModelBinderProvider());
-      });
-    }
+    /// <param name="builder">The MVC builder used to configure MVC services and options.</param>
+    /// <param name="parameterKey">The query string key to use for paging information. If not specified, defaults to the standard page parameter
+    /// name.</param>
+    /// <returns>The same <see cref="IMvcBuilder"/> instance, enabling further MVC configuration.</returns>
+    public static IMvcBuilder AddPagingInfoParameterBinding(this IMvcBuilder builder, string? parameterKey = QueryParameterNames.Page) =>
+      builder.AddPagingInfoParameterBinding(new PageInfoQueryStringParser(), parameterKey);
 
     /// <summary>
-    /// Configures the MVC builder to enable parameter binding for paging information from query string parameters.
+    /// Configures the MVC builder to enable parameter binding for paging information from query string parameters
+    /// using a custom pattern provider.
     /// </summary>
     /// <remarks>This method adds the necessary services and configuration to enable automatic binding of paging
-    /// information from query string parameters to action method parameters. The paging information can be used to
-    /// dynamically control data pagination based on client-specified paging criteria.</remarks>
+    /// information from query string parameters to action method parameters using a custom <see cref="PageInfoPatternProvider"/>.
+    /// The paging information can be used to implement pagination, including offset-based and cursor-based pagination.</remarks>
     /// <param name="builder">The <see cref="IMvcBuilder"/> instance to configure.</param>
-    /// <param name="parseStrategy"></param>
+    /// <param name="pageInfoPatternProvider">The pattern provider that defines the regular expression patterns for parsing page information from
+    /// query strings.</param>
+    /// <param name="parameterKey">The query string parameter key used to identify paging information. If not specified,
+    /// the default key from <see cref="QueryParameterNames.Page"/> will be used.</param>
     /// <returns>The <see cref="IMvcBuilder"/> instance, enabling method chaining for additional configuration.</returns>
-    public static IMvcBuilder AddPagingInfoParameterBinding(this IMvcBuilder builder, IParseStrategy<PageInfo>? parseStrategy = null)
-    {
-      ArgumentNullException.ThrowIfNull(builder);
-      builder.Services.TryAddSingleton(parseStrategy ?? new PageInfoQueryStringParser());
-      return builder.AddMvcOptions((o) => o.ModelBinderProviders.Insert(0, new PageInfoModelBinderProvider()));
-    }
+    public static IMvcBuilder AddPagingInfoParameterBinding(this IMvcBuilder builder, PageInfoPatternProvider pageInfoPatternProvider, string? parameterKey = QueryParameterNames.Page) =>
+      builder.AddPagingInfoParameterBinding(new PageInfoQueryStringParser(pageInfoPatternProvider), parameterKey);
 
     /// <summary>
     /// Configures the MVC builder to enable parameter binding for sort information from query string parameters.
@@ -99,14 +83,12 @@ namespace Microsoft.AspNetCore.Builder
     /// <param name="builder">The <see cref="IMvcBuilder"/> instance to configure.</param>
     /// <param name="parameterKey">The query string parameter key used to identify sort information. If not specified,
     /// the default key from <see cref="QueryParameterNames.Sort"/> will be used.</param>
-    /// <param name="sortInfoParseStrategy"></param>
+    /// 
     /// <returns>The <see cref="IMvcBuilder"/> instance, enabling method chaining for additional configuration.</returns>
-    public static IMvcBuilder AddSortInfoParameterBinding(this IMvcBuilder builder, string? parameterKey = QueryParameterNames.Sort, IParseStrategy<IEnumerable<SortInfo>>? sortInfoParseStrategy = null)
+    public static IMvcBuilder AddSortInfoParameterBinding(this IMvcBuilder builder, string? parameterKey = QueryParameterNames.Sort)
     {
       ArgumentNullException.ThrowIfNull(builder);
       ArgumentException.ThrowIfNullOrWhiteSpace(parameterKey);
-
-      builder.Services.TryAddSingleton(sortInfoParseStrategy ?? new SortsQueryStringParser());
 
       return builder.AddMvcOptions((o) =>
       {
@@ -134,8 +116,60 @@ namespace Microsoft.AspNetCore.Builder
       configureOptions?.Invoke(options);
 
       return builder.AddFilterInfoParameterBinding(options.FilterBindingOptions.PatternProvider, options.FilterBindingOptions.ParameterKey)
-        .AddPagingInfoParameterBinding(options.PageBindingOptions.ParsingStrategy)
-        .AddSortInfoParameterBinding(options.SortBindingOptions.ParameterKey, options.SortBindingOptions.ParseStrategy);
+        .AddPagingInfoParameterBinding(options.PageBindingOptions.PatternProvider, options.PageBindingOptions.ParameterKey)
+        .AddSortInfoParameterBinding(options.SortBindingOptions.ParameterKey);
+    }
+
+    /// <summary>
+    /// Configures MVC to support binding of filter information from query string parameters using a custom or default
+    /// parsing strategy.
+    /// </summary>
+    /// <remarks>This method adds the necessary value provider and model binder to enable automatic binding of
+    /// filter information from query string parameters. It should be called during MVC setup in the application's
+    /// service configuration.</remarks>
+    /// <param name="builder">The MVC builder used to configure services and options for the application. Cannot be null.</param>
+    /// <param name="parseStrategy">An optional parsing strategy for converting query string values into a collection of filter information. If
+    /// null, a default parser is used.</param>
+    /// <param name="parameterKey">The query string key to use for filter information. Cannot be null or whitespace. Defaults to the standard
+    /// filter parameter name.</param>
+    /// <returns>The same MVC builder instance, configured to support filter information parameter binding.</returns>
+    private static IMvcBuilder AddFilterInfoParameterBinding(this IMvcBuilder builder, IParseStrategy<FilterInfoCollection>? parseStrategy, string? parameterKey = QueryParameterNames.Filter)
+    {
+      ArgumentNullException.ThrowIfNull(builder);
+      ArgumentException.ThrowIfNullOrWhiteSpace(parameterKey);
+
+      builder.Services.TryAddSingleton(parseStrategy ?? new FilterQueryStringParser());
+
+      return builder.AddMvcOptions((o) =>
+      {
+        o.ValueProviderFactories.Insert(0, new CompleteKeyedQueryStringValueProviderFactory(parameterKey));
+        o.ModelBinderProviders.Insert(0, new FilterInfoModelBinderProvider());
+      });
+    }
+
+    /// <summary>
+    /// Configures MVC to support binding of paging information parameters using a custom or default parsing strategy.
+    /// </summary>
+    /// <remarks>This method registers the necessary value provider and model binder to enable automatic
+    /// binding of paging information to action parameters. It should be called during MVC service configuration in the
+    /// application's startup.</remarks>
+    /// <param name="builder">The MVC builder used to configure MVC services and options.</param>
+    /// <param name="parseStrategy">An optional strategy for parsing paging information from incoming requests. If null, a default query string
+    /// parser is used.</param>
+    /// <param name="parameterKey">The query parameter key used to identify paging information in requests. If null, the default key is used.</param>
+    /// <returns>The same MVC builder instance, enabling further configuration.</returns>
+    private static IMvcBuilder AddPagingInfoParameterBinding(this IMvcBuilder builder, IParseStrategy<PageInfo>? parseStrategy, string? parameterKey = QueryParameterNames.Page)
+    {
+      ArgumentNullException.ThrowIfNull(builder);
+      ArgumentException.ThrowIfNullOrWhiteSpace(parameterKey);
+
+      builder.Services.TryAddSingleton(parseStrategy ?? new PageInfoQueryStringParser());
+
+      return builder.AddMvcOptions((o) =>
+      {
+        o.ValueProviderFactories.Insert(0, new CompleteKeyedQueryStringValueProviderFactory(parameterKey));
+        o.ModelBinderProviders.Insert(0, new PageInfoModelBinderProvider());
+      });
     }
   }
 }

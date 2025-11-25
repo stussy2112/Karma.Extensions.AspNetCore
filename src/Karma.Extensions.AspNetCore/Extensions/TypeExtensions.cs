@@ -31,11 +31,13 @@ namespace Karma.Extensions.AspNetCore
         return typeInfo.GetElementType();
       }
 
-      if (typeof(string) != typeInfo && typeof(IEnumerable).IsAssignableFrom(typeInfo))
+      if (typeof(string) != typeInfo && typeof(IEnumerable).IsAssignableFrom(typeInfo) && typeInfo.IsAssignableToGenericType(typeof(IEnumerable<>), out Type? found))
       {
-        Type? type = new List<Type>(typeInfo.GetInterfaces()) { typeInfo }
-          .Find((t) => t.IsAssignableToGenericType(typeof(IEnumerable<>)));
-        return type?.GenericTypeArguments.Length > 0 ? type.GenericTypeArguments[0] : null;
+          Type[] genericArgs = found.GetGenericArguments();
+          if (genericArgs.Length > 0)
+          {
+            return genericArgs[0];
+          }
       }
 
       return null;
@@ -66,6 +68,34 @@ namespace Karma.Extensions.AspNetCore
       }
 
       return instance.BaseType?.IsAssignableToGenericType(genericType) ?? false;
+    }
+
+    /// <summary>
+    /// Determines if the <paramref name="typeInfo"/> is assignable to the <paramref name="genericType"/> and returns the found type.
+    /// </summary>
+    /// <param name="typeInfo">The <see cref="Type"/> to be checked.</param>
+    /// <param name="genericType">The <see cref="Type"/> against which to test the <paramref name="typeInfo"/>.</param>
+    /// <param name="foundType">When this method returns, contains the matching generic type if found; otherwise, <see langword="null"/>.</param>
+    /// <returns><see langword="true"/> if the <paramref name="typeInfo"/> is assignable to the <paramref name="genericType"/>; otherwise, <see langword="false"/>.</returns>
+    public static bool IsAssignableToGenericType(this Type? typeInfo, Type? genericType, [NotNullWhen(true)] out Type? foundType)
+    {
+      foundType = null;
+      if (typeInfo is null || genericType is null)
+      {
+        return false;
+      }
+
+      if (typeInfo.IsGenericType && typeInfo.GetGenericTypeDefinition() == genericType)
+      {
+        foundType = typeInfo;
+        return true;
+      }
+
+      foundType = Array.Find(
+          typeInfo.GetInterfaces(),
+          (t) => t.IsGenericType && t.GetGenericTypeDefinition() == genericType);
+
+      return foundType is not null;
     }
 
     /// <summary>
