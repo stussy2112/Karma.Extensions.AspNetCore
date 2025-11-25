@@ -19,7 +19,7 @@ namespace Karma.Extensions.AspNetCore
     private const string ValueGroupName = "value";
 
     // NOTE: sort={type}.{field} // NOSONAR
-    [GeneratedRegex(@"(?:(?<=^|\?|&)sort=)?(?<value>[\p{L}\p{N}.\-_ ]+[^&\r\n]*)", RegExConstants.RegExOptions, RegExConstants.Culture)]
+    [GeneratedRegex(@"(?<=^|\?|&)sort=(?<value>[\p{L}\p{N}.\-_ ]+[^&\r\n]*)", RegExConstants.RegExOptions, RegExConstants.Culture)]
     private static partial Regex SortInfoRegEx();
 
     /// <inheritdoc />
@@ -46,7 +46,7 @@ namespace Karma.Extensions.AspNetCore
         yield break;
       }
 
-      var seen = new HashSet<SortInfo>();
+      HashSet<string> seen = new (StringComparer.Ordinal);
       foreach (Match match in matches)
       {
         string groupValue = match.Groups[ValueGroupName].Value;
@@ -57,8 +57,21 @@ namespace Karma.Extensions.AspNetCore
 
         foreach (string field in groupValue.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
         {
-          SortInfo sortInfo = field;
-          if (seen.Add(sortInfo)) // Only yield if not already seen
+          SortInfo? sortInfo;
+          try
+          {
+            // TRICKY: The `SortInfo` constructor will validate the field name ...
+            sortInfo = field; // Implicit conversion from string to SortInfo
+          }
+          catch (ArgumentException)
+          {
+            // ... and throw an `ArgumentException` if invalid
+            // Skip invalid field names (e.g., just "-" or empty after trimming "-")
+            continue;
+          }
+
+          // Only yield if successfully created and not already seen
+          if (seen.Add(sortInfo.FieldName))
           {
             yield return sortInfo;
           }
@@ -76,8 +89,8 @@ namespace Karma.Extensions.AspNetCore
       }
 
       parsed = Parse(input);
-
-      return parsed.Any();
+      parsed = parsed.Any() ? parsed : null;
+      return parsed is not null;
     }
 
     /// <inheritdoc />

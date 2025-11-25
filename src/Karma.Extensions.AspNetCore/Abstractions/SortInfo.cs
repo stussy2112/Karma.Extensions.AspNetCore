@@ -34,7 +34,13 @@ namespace Karma.Extensions.AspNetCore
       }
 
       Direction = direction == ListSortDirection.Ascending && fieldName.StartsWith('-') ? ListSortDirection.Descending : direction;
-      FieldName = fieldName.TrimStart('-');
+      string workingFieldName = fieldName.TrimStart('-');
+      if (string.IsNullOrWhiteSpace(workingFieldName))
+      {
+        throw new ArgumentException($"'{nameof(fieldName)}' cannot be null or empty.", nameof(fieldName));
+      }
+
+      FieldName = workingFieldName;
       OriginalFieldName = fieldName;
     }
 

@@ -50,7 +50,7 @@ namespace Karma.Extensions.AspNetCore
     /// </summary>
     /// <returns>A compiled <see cref="Regex"/> instance optimized for the default filter pattern.</returns>
     [GeneratedRegex(DefaultFilterPattern, RegExConstants.RegExOptions | RegexOptions.IgnoreCase, RegExConstants.MatchTimeoutMilliseconds, RegExConstants.Culture)]
-    private static partial Regex GetDefaultFilterRegex();
+    private static partial Regex DefaultFilterRegex();
 
     /// <summary>
     /// Gets the default instance of the <see cref="FilterPatternProvider"/> class.
@@ -165,7 +165,7 @@ namespace Karma.Extensions.AspNetCore
     /// otherwise falls back to runtime compilation.</remarks>
     public override Regex RegularExpression =>
       Pattern == DefaultFilterPattern
-        ? GetDefaultFilterRegex()
+        ? DefaultFilterRegex()
         : base.RegularExpression;
   }
 }

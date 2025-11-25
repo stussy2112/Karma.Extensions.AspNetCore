@@ -28,8 +28,8 @@ namespace Karma.Extensions.AspNetCore
     /// Generates a compiled regex for the default page info pattern using source generation.
     /// </summary>
     /// <returns>A compiled <see cref="Regex"/> instance optimized for the default page info pattern.</returns>
-    [GeneratedRegex(DefaultPageInfoPattern, RegExConstants.RegExOptions | RegexOptions.IgnoreCase, RegExConstants.Culture)]
-    private static partial Regex GetDefaultPageInfoRegex();
+    [GeneratedRegex(DefaultPageInfoPattern, RegExConstants.RegExOptions | RegexOptions.IgnoreCase, RegExConstants.MatchTimeoutMilliseconds, RegExConstants.Culture)]
+    private static partial Regex DefaultPageInfoRegex();
 
     /// <summary>
     /// Gets the default instance of the <see cref="PageInfoPatternProvider"/> class.
@@ -77,7 +77,7 @@ namespace Karma.Extensions.AspNetCore
     /// otherwise falls back to runtime compilation.</remarks>
     public override Regex RegularExpression =>
       Pattern == DefaultPageInfoPattern
-        ? GetDefaultPageInfoRegex()
+        ? DefaultPageInfoRegex()
         : base.RegularExpression;
   }
 }
