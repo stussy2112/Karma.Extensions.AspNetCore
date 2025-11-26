@@ -8,7 +8,6 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
-using Karma.Extensions.AspNetCore.ModelBinding;
 using Karma.Extensions.AspNetCore.Mvc.ModelBinding;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Mvc;
@@ -163,7 +162,7 @@ namespace Karma.Extensions.AspNetCore.Tests.DependencyInjection
       // Assert
       MvcOptions? mvcOptions = provider.GetService<Microsoft.Extensions.Options.IOptions<MvcOptions>>()?.Value;
       Assert.IsNotNull(mvcOptions);
-      Assert.IsTrue(mvcOptions.ModelBinderProviders.Any((p) => p is PageInfoModelBinderProvider));
+      Assert.IsTrue(mvcOptions.ModelBinderProviders.Any((p) => p is QueryStringParserModelBinderProvider<PageInfoModelBinder, PageInfo>));
     }
 
     [TestMethod]
@@ -333,7 +332,7 @@ namespace Karma.Extensions.AspNetCore.Tests.DependencyInjection
       MvcOptions? mvcOptions = provider.GetService<Microsoft.Extensions.Options.IOptions<MvcOptions>>()?.Value;
       Assert.IsNotNull(mvcOptions);
       Assert.IsTrue(mvcOptions.ModelBinderProviders.Any((p) => p is FilterInfoModelBinderProvider));
-      Assert.IsTrue(mvcOptions.ModelBinderProviders.Any((p) => p is PageInfoModelBinderProvider));
+      Assert.IsTrue(mvcOptions.ModelBinderProviders.Any((p) => p is QueryStringParserModelBinderProvider<PageInfoModelBinder, PageInfo>));
       Assert.IsTrue(mvcOptions.ModelBinderProviders.Any((p) => p is SortInfoModelBinderProvider));
     }
 
@@ -608,7 +607,7 @@ namespace Karma.Extensions.AspNetCore.Tests.DependencyInjection
       // Assert
       MvcOptions? mvcOptions = provider.GetService<Microsoft.Extensions.Options.IOptions<MvcOptions>>()?.Value;
       Assert.IsNotNull(mvcOptions);
-      Assert.IsTrue(mvcOptions.ModelBinderProviders.Any((p) => p is PageInfoModelBinderProvider));
+      Assert.IsTrue(mvcOptions.ModelBinderProviders.Any((p) => p is QueryStringParserModelBinderProvider<PageInfoModelBinder, PageInfo>));
     }
 
     [TestMethod]
@@ -806,7 +805,7 @@ namespace Karma.Extensions.AspNetCore.Tests.DependencyInjection
       MvcOptions? mvcOptions = provider.GetService<Microsoft.Extensions.Options.IOptions<MvcOptions>>()?.Value;
       Assert.IsNotNull(mvcOptions);
       Assert.IsTrue(mvcOptions.ModelBinderProviders.Any((p) => p is FilterInfoModelBinderProvider));
-      Assert.IsTrue(mvcOptions.ModelBinderProviders.Any((p) => p is PageInfoModelBinderProvider));
+      Assert.IsTrue(mvcOptions.ModelBinderProviders.Any((p) => p is QueryStringParserModelBinderProvider<PageInfoModelBinder, PageInfo>));
       Assert.IsTrue(mvcOptions.ModelBinderProviders.Any((p) => p is SortInfoModelBinderProvider));
     }
   }

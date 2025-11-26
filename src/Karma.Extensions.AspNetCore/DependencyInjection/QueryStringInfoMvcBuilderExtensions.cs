@@ -6,7 +6,6 @@
 
 using System;
 using Karma.Extensions.AspNetCore;
-using Karma.Extensions.AspNetCore.ModelBinding;
 using Karma.Extensions.AspNetCore.Mvc.ModelBinding;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -164,7 +163,7 @@ namespace Microsoft.AspNetCore.Builder
       return builder.AddMvcOptions((o) =>
       {
         o.ValueProviderFactories.Insert(0, new CompleteKeyedQueryStringValueProviderFactory(parameterKey));
-        o.ModelBinderProviders.Insert(0, new PageInfoModelBinderProvider());
+        o.ModelBinderProviders.Insert(0, new QueryStringParserModelBinderProvider<PageInfoModelBinder, PageInfo>());
       });
     }
   }

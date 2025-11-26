@@ -8,13 +8,14 @@ description: "This file provides guidelines for writing clean, maintainable, and
 ## Table of Contents
 
 1. [Role Definition](#role-definition)
-2. [General](#general)
-3. [Documentation](#documentation)
+2. [Quick Reference](#quick-reference)
+3. [General](#general)
+4. [Documentation](#documentation)
    - [Comments](#comments)
-4. [Testing](#testing)
-5. [Code Quality and Compiler Diagnostics](#code-quality-and-compiler-diagnostics)
+5. [Testing](#testing)
+6. [Code Quality and Compiler Diagnostics](#code-quality-and-compiler-diagnostics)
    - [Compiler Warnings and Errors](#compiler-warnings-and-errors-mandatory)
-6. [Code Structure](#code-structure)
+7. [Code Structure](#code-structure)
    - [Design](#design)
    - [Usings and Namespaces](#usings-and-namespaces)
    - [File-Scoped Namespaces](#file-scoped-namespaces)
@@ -36,22 +37,301 @@ description: "This file provides guidelines for writing clean, maintainable, and
    - [Expressions](#expressions)
       - [Expression-Bodied Members](#expression-bodied-members-mandatory)
       - [Expression Trees](#expression-trees)
-7. [Dependency Management](#dependency-management)
-8. [Safe Operations](#safe-operations)
-9. [Exception Handling](#exception-handling)
-10. [Performance Considerations](#performance-considerations)
-11. [Security Considerations](#security-considerations)
-12. [Modern C# Features](#modern-c-features)
+8. [Dependency Management](#dependency-management)
+9. [Safe Operations](#safe-operations)
+10. [Exception Handling](#exception-handling)
+11. [Performance Considerations](#performance-considerations)
+12. [Security Considerations](#security-considerations)
+13. [Modern C# Features](#modern-c-features)
     - [Nullable Reference Types](#nullable-reference-types)
     - [Asynchronous Streams](#asynchronous-streams)
     - [Other Modern C# Features](#other-modern-c-features)
-13. [Related Guidelines](#related-guidelines)
+14. [Related Guidelines](#related-guidelines)
 
 ## Role Definition
 
 - C# Language Expert
 - Software Architect
 - Code Quality Specialist
+
+## Quick Reference
+
+### Mandatory Requirements (Non-Negotiable)
+
+**⚠️ ZERO TOLERANCE:**
+- ✅ **All compiler warnings and errors MUST be resolved** - No exceptions
+- ✅ **Execute all unit tests after changes** - Tests must pass before commit
+- ✅ **Always use braces `{}` for control structures** - Even single statements
+- ✅ **Use expression-bodied members for single expressions** - Mandatory for IDE2003
+- ✅ **Always use parentheses around lambda parameters** - `(x) => x * x`
+- ✅ **No `else` after `return`, `throw`, or `continue`** - Early returns preferred
+- ✅ **All public members MUST have XML documentation** - `/// <summary>`
+
+### Namespace & Usings
+
+```csharp
+// ✅ DO: Explicit usings at top, traditional namespaces
+using System;
+using System.Collections.Generic;
+using System.Linq;
+
+namespace MyNamespace
+{
+  public class MyClass { }
+}
+
+// ❌ DON'T: File-scoped namespaces or implicit usings
+namespace MyNamespace; // Not allowed
+```
+
+### Nullability
+
+```csharp
+// ✅ DO: Explicit nullability with proper checks
+public string? ProcessOrder(Order? order)
+{
+  if (order is null)
+  {
+    throw new ArgumentNullException(nameof(order));
+  }
+  
+  return order?.Name ?? "Unknown";
+}
+
+// ❌ DON'T: Implicit nullability
+public string ProcessOrder(Order order) // Warning: Could be null
+{
+  return order.Name; // CS8602 warning
+}
+```
+
+### Expression-Bodied Members (MANDATORY)
+
+```csharp
+// ✅ DO: Expression-bodied for single expressions
+public string FullName => $"{FirstName} {LastName}";
+public decimal Total() => Lines.Sum((line) => line.Price);
+public void Log(string msg) => _logger.LogInformation(msg);
+
+// ❌ DON'T: Traditional syntax for simple cases
+public string FullName
+{
+  get { return $"{FirstName} {LastName}"; }
+}
+```
+
+### Switch Expressions vs Statements
+
+```csharp
+// ✅ DO: Switch expressions for pure transformations
+public string GetStatus(OrderStatus status) =>
+  status switch
+  {
+    OrderStatus.Pending => "Pending",
+    OrderStatus.Shipped => "Shipped",
+    _ => "Unknown"
+  };
+
+// ✅ DO: Switch statements for side effects
+public async Task ProcessAsync(Order order)
+{
+  switch (order.Status)
+  {
+    case OrderStatus.Pending:
+      await _service.ProcessPaymentAsync(order);
+      await _logger.LogAsync("Payment processed");
+      break;
+  }
+}
+```
+
+### Conditionals (No else after return)
+
+```csharp
+// ✅ DO: Early returns without else
+public string GetStatus(int code)
+{
+  if (code == 200)
+  {
+    return "OK";
+  }
+  
+  if (code == 404)
+  {
+    return "Not Found";
+  }
+  
+  return "Unknown";
+}
+
+// ❌ DON'T: else after return
+public string GetStatus(int code)
+{
+  if (code == 200)
+  {
+    return "OK";
+  }
+  else if (code == 404) // ❌ Unnecessary else
+  {
+    return "Not Found";
+  }
+}
+```
+
+### Records for Immutable Data
+
+```csharp
+// ✅ DO: Sealed records for DTOs and value objects
+public sealed record Customer(int Id, string Name, string Email);
+
+public sealed record Order(OrderId Id, IReadOnlyList<OrderLine> Lines)
+{
+  public decimal Total => Lines.Sum((line) => line.Price * line.Quantity);
+}
+
+// ❌ DON'T: Mutable classes for simple data
+public class Customer
+{
+  public int Id { get; set; }
+  public string Name { get; set; }
+}
+```
+
+### Collections
+
+```csharp
+// ✅ DO: Explicit type with collection expressions
+List<OrderLine> lines = [
+  new OrderLine { Id = 1, Price = 10.00m },
+  new OrderLine { Id = 2, Price = 20.00m }
+];
+
+// Empty collections
+List<OrderLine> empty = [];
+
+// ❌ DON'T: var with collection expressions
+var lines = [new OrderLine { Id = 1 }]; // Ambiguous type
+```
+
+### String Comparisons
+
+```csharp
+// ✅ DO: Always use StringComparison
+if (string.Equals(name, "John", StringComparison.OrdinalIgnoreCase))
+{
+  // Case-insensitive comparison
+}
+
+var dict = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+// ❌ DON'T: Culture-sensitive comparison
+if (name == "John") // ❌ Culture-sensitive
+```
+
+### Async/Await
+
+```csharp
+// ✅ DO: Always use CancellationToken and ConfigureAwait(false)
+public async Task<Order> GetOrderAsync(
+  OrderId id,
+  CancellationToken ct = default)
+{
+  return await _repository
+    .FindAsync(id, ct)
+    .ConfigureAwait(false);
+}
+
+// ❌ DON'T: Blocking calls or missing ConfigureAwait
+public Order GetOrder(OrderId id)
+{
+  return _repository.GetOrderAsync(id).Result; // ❌ Deadlock risk
+}
+```
+
+### Symbol References
+
+```csharp
+// ✅ DO: Always use nameof
+throw new ArgumentNullException(nameof(order));
+_logger.LogInformation("Processing {OrderId}", nameof(order.Id));
+
+// ❌ DON'T: String literals for member names
+throw new ArgumentNullException("order"); // ❌ No refactoring support
+```
+
+### Access Modifiers
+
+```csharp
+// ✅ DO: Always explicit, prefer restrictive
+public class OrderService
+{
+  private readonly ILogger _logger;
+  internal string ProcessingId { get; }
+  public Task<Order> GetOrderAsync() { }
+}
+
+// ❌ DON'T: Implicit or overly permissive
+class OrderService // ❌ No modifier
+{
+  ILogger _logger; // ❌ No modifier
+}
+```
+
+### Documentation
+
+```csharp
+/// <summary>
+/// Processes an order by validating and saving it to the repository.
+/// </summary>
+/// <param name="order">The order to process.</param>
+/// <returns>The processed order with updated status.</returns>
+/// <exception cref="ArgumentNullException">Thrown when order is null.</exception>
+public Order ProcessOrder(Order order)
+{
+  // Implementation
+}
+```
+
+### Common Warnings to Fix
+
+| Warning | Description | Fix |
+|---------|-------------|-----|
+| **IDE2003** | Use expression body | Convert to `=>` syntax |
+| **IDE0060** | Remove unused parameter | Remove or use parameter |
+| **CS8618** | Non-nullable uninitialized | Initialize or mark nullable |
+| **CS8602** | Possible null reference | Add null check or `?.` |
+| **IDE0059** | Unnecessary assignment | Remove unused assignment |
+
+### Testing Requirements
+
+- ✅ Write unit tests for all new features and bug fixes
+- ✅ Test behavior through public APIs, not implementation details
+- ✅ Execute all tests and ensure they pass before committing
+- ✅ If a test fails, verify the test assumption before changing code
+
+### When to Use What
+
+| Scenario | Use | Don't Use |
+|----------|-----|-----------|
+| **Immutable data** | `record` | `class` with setters |
+| **Value transformation** | Switch expression | Switch statement |
+| **Side effects** | Switch statement | Switch expression |
+| **Pure function** | `static` method | Instance method |
+| **Single expression** | Expression body `=>` | Block body `{ }` |
+| **Nullable value** | `string?` with checks | Implicit nullability |
+| **String comparison** | `StringComparison.OrdinalIgnoreCase` | `==` operator |
+| **Collection params** | `IReadOnlyList<T>` | `List<T>` |
+| **Async method** | `Task<T>` with `ConfigureAwait(false)` | `.Result` or `.Wait()` |
+
+### Build Verification
+
+```bash
+# Must pass before commit
+dotnet build --verbosity normal  # Check for warnings
+dotnet test                      # All tests must pass
+```
+
+**Remember:** Clean compilation with zero warnings is mandatory. This is not optional—it's a prerequisite for professional software development.
 
 ## General
 

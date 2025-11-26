@@ -11,7 +11,7 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc.ModelBinding;
 using Microsoft.Extensions.Primitives;
 
-namespace Karma.Extensions.AspNetCore.ModelBinding
+namespace Karma.Extensions.AspNetCore.Mvc.ModelBinding
 {
   /// <summary>
   /// A model binder that binds a collection of <see cref="SortInfo"/> objects from a request's input data.

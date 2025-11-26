@@ -9,7 +9,7 @@ using System.Collections.Generic;
 using Microsoft.AspNetCore.Mvc.ModelBinding;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace Karma.Extensions.AspNetCore.ModelBinding
+namespace Karma.Extensions.AspNetCore.Mvc.ModelBinding
 {
   /// <summary>
   /// Provides a model binder for types related to filtering, such as <see cref="FilterInfoCollection"/> or <see

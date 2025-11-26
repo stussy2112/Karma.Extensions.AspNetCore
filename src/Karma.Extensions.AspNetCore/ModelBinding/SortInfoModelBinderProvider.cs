@@ -8,7 +8,7 @@ using System;
 using System.Collections.Generic;
 using Microsoft.AspNetCore.Mvc.ModelBinding;
 
-namespace Karma.Extensions.AspNetCore.ModelBinding
+namespace Karma.Extensions.AspNetCore.Mvc.ModelBinding
 {
   /// <summary>
   /// Provides a model binder for binding models of type <see cref="IEnumerable{SortInfo}"/>.

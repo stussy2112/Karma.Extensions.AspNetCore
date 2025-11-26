@@ -7,7 +7,7 @@
 using System.Collections.Generic;
 using System.Net.Mime;
 using System.Threading.Tasks;
-using Karma.Extensions.AspNetCore.ModelBinding;
+using Karma.Extensions.AspNetCore.Mvc.ModelBinding;
 using Karma.Extensions.AspNetCore.Samples.WebApi.Data;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
