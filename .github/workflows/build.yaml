@@ -59,9 +59,8 @@ jobs:
           /d:sonar.host.url="https://sonarcloud.io" \
           /d:sonar.scanner.scanAll=false \
           /d:sonar.scanner.skipJreProvisioning=true \
-          /d:sonar.cs.vscoveragexml.reportsPaths="${{ env.TEST_RESULTS }}/**/*.xml" \
-          /d:sonar.cs.vstest.reportsPaths="${{ env.TEST_RESULTS }}/**/*.trx"
-          /d:sonar.exclusions="**/obj/**,**/*.dll,**/samples/**"
+          /d:sonar.cs.vscoveragexml.reportsPaths="${{ env.TEST_RESULTS }}/*.xml" \
+          /d:sonar.cs.vstest.reportsPaths="${{ env.TEST_RESULTS }}/*.trx"
       
     - name: Build solution
       run: |
