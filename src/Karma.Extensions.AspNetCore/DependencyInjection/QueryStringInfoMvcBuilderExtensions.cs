@@ -17,7 +17,7 @@ namespace Microsoft.AspNetCore.Builder
   /// Provides extension methods for configuring MVC to support automatic parameter binding of filter, paging, and sorting
   /// information from query string parameters.
   /// </summary>
-  public static class MvcBuilderQueryStringInfoExtensions
+  public static class QueryStringInfoMvcBuilderExtensions
   {
     /// <summary>
     /// Configures the MVC builder to enable parameter binding for filter information from query string parameters.

@@ -1,5 +1,5 @@
 // -----------------------------------------------------------------------
-// <copyright file="MvcBuilderQueryStringInfoExtensionsTests.cs" company="Karma, LLC">
+// <copyright file="QueryStringInfoMvcBuilderExtensionsTests.cs" company="Karma, LLC">
 //   Copyright (c) Karma, LLC. All rights reserved.
 // </copyright>
 // -----------------------------------------------------------------------
@@ -17,11 +17,11 @@ using Microsoft.Extensions.DependencyInjection;
 namespace Karma.Extensions.AspNetCore.Tests.DependencyInjection
 {
   /// <summary>
-  /// Contains unit tests for the <see cref="MvcBuilderQueryStringInfoExtensions"/> class.
+  /// Contains unit tests for the <see cref="QueryStringInfoMvcBuilderExtensions"/> class.
   /// </summary>
   [ExcludeFromCodeCoverage]
   [TestClass]
-  public sealed class MvcBuilderQueryStringInfoExtensionsTests
+  public sealed class QueryStringInfoMvcBuilderExtensionsTests
   {
     [TestMethod]
     public void When_builder_is_null_AddFilterInfoParameterBinding_with_parameterKey_throws_ArgumentNullException()

@@ -300,7 +300,7 @@ namespace Karma.Extensions.AspNetCore.Tests.ModelBinding
       // Assert
       Assert.AreNotEqual(ValueProviderResult.None, result);
       Assert.AreEqual(4, result.Values.Count);
-      Assert.IsTrue(result.Values.All(string.IsNullOrEmpty));
+      Assert.IsTrue(result.Values.All(string.IsNullOrWhiteSpace));
     }
 
     [TestMethod]

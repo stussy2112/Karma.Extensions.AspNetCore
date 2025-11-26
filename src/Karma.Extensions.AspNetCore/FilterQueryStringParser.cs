@@ -263,7 +263,7 @@ namespace Karma.Extensions.AspNetCore
       // The filter is a member of a group IF
       // ...it explicitly defines a <memberOf>
       string memberOf = filterDefinition.Groups.GetGroupCollectionValue(_patternProvider.MemberOfGroupName);
-      if (string.IsNullOrEmpty(memberOf))
+      if (string.IsNullOrWhiteSpace(memberOf))
       {
         // ...it explicitly defines a <conjunction> without defining a <memberOf>
         string conjunction = filterDefinition.Groups.GetGroupCollectionValue(_patternProvider.ConjunctionGroupName);

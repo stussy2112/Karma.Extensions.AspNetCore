@@ -97,7 +97,7 @@ namespace Karma.Extensions.AspNetCore.Mvc.ModelBinding
       // Aggregate all related query parameters
       string aggregatedQueryString = GetAggregatedQueryString();
 
-      if (string.IsNullOrEmpty(aggregatedQueryString))
+      if (string.IsNullOrWhiteSpace(aggregatedQueryString))
       {
         return ValueProviderResult.None;
       }

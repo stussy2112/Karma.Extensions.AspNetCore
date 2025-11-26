@@ -373,13 +373,20 @@ csharp_style_prefer_top_level_statements                                  = true
 [*Tests.cs]
 # Disable some rules for test files
 dotnet_diagnostic.CS0169.severity                                        = none
+# Unassigned internal fields
 dotnet_diagnostic.CS0649.severity                                        = none
+# Do not declare visible instance fields
 dotnet_diagnostic.CA1051.severity                                        = none
+# Properties should not return arrays
 dotnet_diagnostic.CA1819.severity                                        = none
 # Use concrete types when possible for improved performance
 dotnet_diagnostic.CA1859.severity                                        = none
+# Mark members as static
 dotnet_diagnostic.CA1822.severity                                        = none
+# Remove unnecessary suppression
 dotnet_diagnostic.IDE0079.severity                                       = none
+# Parameter names used into ArgumentException constructors should match an existing one
+dotnet_diagnostic.S3928.severity                                         = none
 # Use GeneratedRegexAttribute to generate the regular expression implementation at compile time.
 dotnet_diagnostic.SYSLIB1045.severity                                    = none
 
