@@ -7,13 +7,13 @@ on:
     branches: [ main ]
 
 env:
-  SOLUTION: '**/*.sln'
+  SOLUTION: 'Karma.Extensions.AspNetCore.sln'
   BUILD_CONFIGURATION: 'Release'
   DOTNET_VERSION: '10.0.x'
-  TEST_PROJECTS: '**/*tests/**/*.csproj'
+  TEST_PROJECTS: '*tests/**/*.csproj'
   SONAR_PROJECT_KEY: 'stussy2112_Karma.Extensions.AspNetCore'
   SONAR_ORGANIZATION: 'azure-stussy2112'
-  SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+  TEST_RESULTS: 'TestResults'
 
 jobs:
   build:
@@ -57,7 +57,10 @@ jobs:
           /o:"${{ env.SONAR_ORGANIZATION }}" \
           /d:sonar.token="${{ secrets.SONAR_TOKEN }}" \
           /d:sonar.host.url="https://sonarcloud.io" \
-          /d:sonar.cs.vscoveragexml.reportsPaths="TestResults/**/coverage.cobertura.xml" \
+          /d:sonar.scanner.scanAll=false \
+          /d:sonar.scanner.skipJreProvisioning=true \
+          /d:sonar.cs.vscoveragexml.reportsPaths="${{ env.TEST_RESULTS }}/**/*.xml" \
+          /d:sonar.cs.vstest.reportsPaths="${{ env.TEST_RESULTS }}/**/*.trx"
           /d:sonar.exclusions="**/obj/**,**/*.dll,**/samples/**"
       
     - name: Build solution
@@ -68,13 +71,14 @@ jobs:
       
     - name: Run unit tests
       run: |
-        dotnet test ${{ env.TEST_PROJECTS }} \
+        dotnet test --solution ${{ env.SOLUTION }} \
           --no-build \
           --configuration ${{ env.BUILD_CONFIGURATION }} \
           --verbosity normal \
-          --logger "trx;LogFileName=test-results.trx" \
-          --collect:"XPlat Code Coverage" \
-          --results-directory ./TestResults
+          --results-directory ./{{ env.TEST_RESULTS }} \
+          --report-trx \
+          --coverage \
+          --coverage-output-format xml,cobertura
           
     - name: End SonarCloud analysis
       run: dotnet sonarscanner end /d:sonar.token="${{ secrets.SONAR_TOKEN }}"
@@ -84,11 +88,11 @@ jobs:
       if: always()
       with:
         files: |
-          TestResults/**/*.trx
+          ${{ env.TEST_RESULTS }}/**/*.trx
         
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v4
       with:
-        files: ./TestResults/**/coverage.cobertura.xml
+        files: ./${{ env.TEST_RESULTS }}/**/coverage.cobertura.xml
         fail_ci_if_error: false
         token: ${{ secrets.CODECOV_TOKEN }}
