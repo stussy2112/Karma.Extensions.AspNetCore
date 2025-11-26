@@ -13,7 +13,7 @@ env:
   TEST_PROJECTS: '*tests/**/*.csproj'
   SONAR_PROJECT_KEY: 'stussy2112_Karma.Extensions.AspNetCore'
   SONAR_ORGANIZATION: 'azure-stussy2112'
-  TEST_RESULTS: 'TestResults'
+  TEST_RESULTS: './TestResults'
 
 jobs:
   build:
@@ -60,7 +60,7 @@ jobs:
           /d:sonar.scanner.scanAll=false \
           /d:sonar.scanner.skipJreProvisioning=true \
           /d:sonar.cs.vscoveragexml.reportsPaths="${{ env.TEST_RESULTS }}/*.xml" \
-          /d:sonar.cs.vstest.reportsPaths="${{ env.TEST_RESULTS }}/*.trx"
+          /d:sonar.cs.vstest.reportsPaths="${{ env.TEST_RESULTS }}/*.trx" 
       
     - name: Build solution
       run: |
@@ -74,7 +74,7 @@ jobs:
           --no-build \
           --configuration ${{ env.BUILD_CONFIGURATION }} \
           --verbosity normal \
-          --results-directory ./{{ env.TEST_RESULTS }} \
+          --results-directory ${{ env.TEST_RESULTS }} \
           --report-trx \
           --coverage \
           --coverage-output-format xml,cobertura
@@ -87,11 +87,11 @@ jobs:
       if: always()
       with:
         files: |
-          ${{ env.TEST_RESULTS }}/**/*.trx
+          ${{ env.TEST_RESULTS }}/*.trx
         
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v4
       with:
-        files: ./${{ env.TEST_RESULTS }}/**/coverage.cobertura.xml
+        files: ./${{ env.TEST_RESULTS }}/*.cobertura.xml
         fail_ci_if_error: false
         token: ${{ secrets.CODECOV_TOKEN }}
