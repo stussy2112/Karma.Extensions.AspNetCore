@@ -1,0 +1,46 @@
+name: 'Run Tests'
+description: 'Execute unit tests with code coverage collection'
+
+inputs:
+  solution:
+    description: 'Path to the solution file'
+    required: true
+  configuration:
+    description: 'Build configuration (must match the build configuration used)'
+    required: true
+    default: 'Release'
+  test-results-path:
+    description: 'Path to store test results and coverage reports'
+    required: true
+    default: './TestResults'
+  verbosity:
+    description: 'Test output verbosity level'
+    required: false
+    default: 'normal'
+
+outputs:
+  test-results-path:
+    description: 'Path where test results were stored'
+    value: ${{ inputs.test-results-path }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Run unit tests
+      shell: bash
+      run: |
+        dotnet test --solution ${{ inputs.solution }} \
+          --no-build \
+          --configuration ${{ inputs.configuration }} \
+          --verbosity ${{ inputs.verbosity }} \
+          --results-directory ${{ inputs.test-results-path }} \
+          --report-trx \
+          --coverage \
+          --coverage-output-format xml,cobertura
+      
+    - name: List test results
+      shell: bash
+      if: always()
+      run: |
+        echo "Test results generated:"
+        ls -R ${{ inputs.test-results-path }} || echo "No test results found"

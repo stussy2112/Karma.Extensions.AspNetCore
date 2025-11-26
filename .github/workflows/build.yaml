@@ -14,13 +14,13 @@ env:
   SOLUTION: 'Karma.Extensions.AspNetCore.sln'
   BUILD_CONFIGURATION: 'Release'
   DOTNET_VERSION: '10.0.x'
-  TEST_PROJECTS: '*tests/**/*.csproj'
   SONAR_PROJECT_KEY: 'stussy2112_Karma.Extensions.AspNetCore'
   SONAR_ORGANIZATION: 'azure-stussy2112'
   TEST_RESULTS: './TestResults'
 
 jobs:
-  build:
+  build-test-analyze:
+    name: Build, Test, and Analyze
     runs-on: ubuntu-latest
     
     steps:
@@ -29,73 +29,35 @@ jobs:
       with:
         fetch-depth: 0  # Required for SonarCloud
         
-    - name: Setup .NET SDK
-      uses: actions/setup-dotnet@v4
+    - name: Setup environment
+      uses: ./.github/actions/setup-environment
       with:
         dotnet-version: ${{ env.DOTNET_VERSION }}
-        
-    - name: Setup Java (for SonarCloud)
-      uses: actions/setup-java@v4
-      with:
-        distribution: 'temurin'
         java-version: '17'
-          
-    - name: Cache SonarCloud packages
-      uses: actions/cache@v4
-      with:
-        path: ~/sonar/cache
-        key: ${{ runner.os }}-sonar
-        restore-keys: ${{ runner.os }}-sonar
         
-    - name: Install SonarCloud scanner
-      run: |
-        dotnet tool install --global dotnet-sonarscanner
-        
-    - name: Restore NuGet packages
-      run: dotnet restore ${{ env.SOLUTION }}
-      
-    - name: Begin SonarCloud analysis
-      run: |
-        dotnet sonarscanner begin \
-          /k:"${{ env.SONAR_PROJECT_KEY }}" \
-          /o:"${{ env.SONAR_ORGANIZATION }}" \
-          /d:sonar.token="${{ secrets.SONAR_TOKEN }}" \
-          /d:sonar.host.url="https://sonarcloud.io" \
-          /d:sonar.scanner.scanAll=false \
-          /d:sonar.scanner.skipJreProvisioning=true \
-          /d:sonar.cs.vscoveragexml.reportsPaths="${{ env.TEST_RESULTS }}/*.xml" \
-          /d:sonar.cs.vstest.reportsPaths="${{ env.TEST_RESULTS }}/*.trx" 
-      
     - name: Build solution
-      run: |
-        dotnet build ${{ env.SOLUTION }} \
-          --no-restore \
-          --configuration ${{ env.BUILD_CONFIGURATION }}
-      
-    - name: Run unit tests
-      run: |
-        dotnet test --solution ${{ env.SOLUTION }} \
-          --no-build \
-          --configuration ${{ env.BUILD_CONFIGURATION }} \
-          --verbosity normal \
-          --results-directory ${{ env.TEST_RESULTS }} \
-          --report-trx \
-          --coverage \
-          --coverage-output-format xml,cobertura
-          
-    - name: End SonarCloud analysis
-      run: dotnet sonarscanner end /d:sonar.token="${{ secrets.SONAR_TOKEN }}"
-      
-    - name: Publish test results
-      uses: EnricoMi/publish-unit-test-result-action/linux@v2
-      if: always()
+      uses: ./.github/actions/build-solution
       with:
-        files: |
-          ${{ env.TEST_RESULTS }}/*.trx
+        solution: ${{ env.SOLUTION }}
+        configuration: ${{ env.BUILD_CONFIGURATION }}
+        sonar-token: ${{ secrets.SONAR_TOKEN }}
+        sonar-project-key: ${{ env.SONAR_PROJECT_KEY }}
+        sonar-organization: ${{ env.SONAR_ORGANIZATION }}
+        test-results-path: ${{ env.TEST_RESULTS }}
         
-    - name: Upload coverage to Codecov
-      uses: codecov/codecov-action@v4
+    - name: Run tests
+      uses: ./.github/actions/run-tests
       with:
-        files: ./${{ env.TEST_RESULTS }}/*.cobertura.xml
-        fail_ci_if_error: false
-        token: ${{ secrets.CODECOV_TOKEN }}
+        solution: ${{ env.SOLUTION }}
+        configuration: ${{ env.BUILD_CONFIGURATION }}
+        test-results-path: ${{ env.TEST_RESULTS }}
+        verbosity: 'normal'
+        
+    - name: Publish results
+      if: always()
+      uses: ./.github/actions/publish-results
+      with:
+        test-results-path: ${{ env.TEST_RESULTS }}
+        sonar-token: ${{ secrets.SONAR_TOKEN }}
+        codecov-token: ${{ secrets.CODECOV_TOKEN }}
+        fail-on-coverage-error: 'false'

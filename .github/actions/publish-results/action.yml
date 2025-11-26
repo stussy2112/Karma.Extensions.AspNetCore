@@ -1,0 +1,58 @@
+name: 'Publish Results'
+description: 'Complete SonarCloud analysis and publish test results and code coverage'
+
+inputs:
+  test-results-path:
+    description: 'Path to test results and coverage files'
+    required: true
+    default: './TestResults'
+  sonar-token:
+    description: 'SonarCloud authentication token'
+    required: true
+  codecov-token:
+    description: 'Codecov authentication token (optional)'
+    required: false
+    default: ''
+  fail-on-coverage-error:
+    description: 'Fail the build if coverage upload fails'
+    required: false
+    default: 'false'
+
+runs:
+  using: 'composite'
+  steps:
+    - name: End SonarCloud analysis
+      shell: bash
+      run: dotnet sonarscanner end /d:sonar.token="${{ inputs.sonar-token }}"
+      
+    - name: Publish test results
+      uses: EnricoMi/publish-unit-test-result-action/linux@v2
+      if: always()
+      with:
+        files: |
+          ${{ inputs.test-results-path }}/*.trx
+        check_name: 'Test Results'
+        comment_mode: 'off'
+        
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v4
+      if: inputs.codecov-token != ''
+      with:
+        files: ./${{ inputs.test-results-path }}/*.cobertura.xml
+        fail_ci_if_error: ${{ inputs.fail-on-coverage-error }}
+        token: ${{ inputs.codecov-token }}
+        verbose: true
+        
+    - name: Generate coverage summary
+      shell: bash
+      if: always()
+      run: |
+        echo "## Code Coverage Summary" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        if [ -f "${{ inputs.test-results-path }}"/*.cobertura.xml ]; then
+          echo "✅ Coverage reports generated successfully" >> $GITHUB_STEP_SUMMARY
+          echo "📊 Coverage files:" >> $GITHUB_STEP_SUMMARY
+          ls -lh ${{ inputs.test-results-path }}/*.cobertura.xml | awk '{print "- " $NF " (" $5 ")"}' >> $GITHUB_STEP_SUMMARY
+        else
+          echo "⚠️ No coverage reports found" >> $GITHUB_STEP_SUMMARY
+        fi

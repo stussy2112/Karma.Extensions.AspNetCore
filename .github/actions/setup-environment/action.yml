@@ -1,0 +1,60 @@
+name: 'Setup Environment'
+description: 'Setup .NET SDK, Java, and SonarCloud scanner for building and analyzing the solution'
+
+inputs:
+  dotnet-version:
+    description: '.NET SDK version to install'
+    required: true
+    default: '10.0.x'
+  java-version:
+    description: 'Java version to install for SonarCloud'
+    required: false
+    default: '17'
+
+outputs:
+  dotnet-version:
+    description: 'Installed .NET SDK version'
+    value: ${{ inputs.dotnet-version }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Setup .NET SDK
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: ${{ inputs.dotnet-version }}
+        
+    - name: Setup Java (for SonarCloud)
+      uses: actions/setup-java@v4
+      with:
+        distribution: 'temurin'
+        java-version: ${{ inputs.java-version }}
+        
+    - name: Cache SonarCloud packages
+      uses: actions/cache@v4
+      with:
+        path: ~/sonar/cache
+        key: ${{ runner.os }}-sonar
+        restore-keys: ${{ runner.os }}-sonar
+        
+    - name: Cache .NET tools
+      uses: actions/cache@v4
+      with:
+        path: ~/.dotnet/tools
+        key: ${{ runner.os }}-dotnet-tools-sonarscanner
+        restore-keys: ${{ runner.os }}-dotnet-tools-
+        
+    - name: Install SonarCloud scanner
+      shell: bash
+      run: |
+        if ! dotnet tool list -g | grep -q dotnet-sonarscanner; then
+          dotnet tool install --global dotnet-sonarscanner
+        fi
+        
+    - name: Cache NuGet packages
+      uses: actions/cache@v4
+      with:
+        path: ~/.nuget/packages
+        key: ${{ runner.os }}-nuget-${{ hashFiles('**/*.csproj') }}
+        restore-keys: |
+          ${{ runner.os }}-nuget-

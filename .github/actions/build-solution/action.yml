@@ -1,0 +1,57 @@
+name: 'Build Solution'
+description: 'Restore NuGet packages, begin SonarCloud analysis, and build the .NET solution'
+
+inputs:
+  solution:
+    description: 'Path to the solution file'
+    required: true
+  configuration:
+    description: 'Build configuration (Release/Debug)'
+    required: true
+    default: 'Release'
+  sonar-token:
+    description: 'SonarCloud authentication token'
+    required: true
+  sonar-project-key:
+    description: 'SonarCloud project key'
+    required: true
+  sonar-organization:
+    description: 'SonarCloud organization'
+    required: true
+  test-results-path:
+    description: 'Path where test results will be stored'
+    required: true
+    default: './TestResults'
+
+outputs:
+  build-configuration:
+    description: 'Build configuration used'
+    value: ${{ inputs.configuration }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Restore NuGet packages
+      shell: bash
+      run: dotnet restore ${{ inputs.solution }}
+      
+    - name: Begin SonarCloud analysis
+      shell: bash
+      run: |
+        dotnet sonarscanner begin \
+          /k:"${{ inputs.sonar-project-key }}" \
+          /o:"${{ inputs.sonar-organization }}" \
+          /d:sonar.token="${{ inputs.sonar-token }}" \
+          /d:sonar.host.url="https://sonarcloud.io" \
+          /d:sonar.scanner.scanAll=false \
+          /d:sonar.scanner.skipJreProvisioning=true \
+          /d:sonar.cs.vscoveragexml.reportsPaths="${{ inputs.test-results-path }}/*.xml" \
+          /d:sonar.cs.vstest.reportsPaths="${{ inputs.test-results-path }}/*.trx" \
+          /d:sonar.exclusions="**/obj/**,**/*.dll,**/samples/**,**/Samples/**"
+      
+    - name: Build solution
+      shell: bash
+      run: |
+        dotnet build ${{ inputs.solution }} \
+          --no-restore \
+          --configuration ${{ inputs.configuration }}
