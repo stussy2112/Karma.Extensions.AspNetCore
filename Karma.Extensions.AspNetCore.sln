@@ -32,6 +32,11 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "samples", "samples", "{BAFB
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Karma.Extensions.AspNetCore.Samples.WebApi", "Samples\Karma.Extensions.AspNetCore.Samples.WebApi\Karma.Extensions.AspNetCore.Samples.WebApi.csproj", "{927816FE-8C46-463F-8629-76B8D4B31788}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = ".github", ".github", "{6B912DBB-AC5F-43B2-B78E-084304C12E70}"
+	ProjectSection(SolutionItems) = preProject
+		.github\workflows\build.yaml = .github\workflows\build.yaml
+	EndProjectSection
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -87,6 +92,7 @@ Global
 		{B29797D8-C885-4256-BF62-BE77933155CB} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
 		{02EA681E-C7D8-13C7-8484-4AC65E1B71E8} = {089100B1-113F-4E66-888A-E83F3999EAFD}
 		{927816FE-8C46-463F-8629-76B8D4B31788} = {BAFB96BF-E200-4581-98CE-47949B07A086}
+		{6B912DBB-AC5F-43B2-B78E-084304C12E70} = {089100B1-113F-4E66-888A-E83F3999EAFD}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {A6372200-84F2-4043-87EE-21513449471A}

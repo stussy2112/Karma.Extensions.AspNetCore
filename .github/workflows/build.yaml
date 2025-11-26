@@ -1,0 +1,94 @@
+name: Build, Test, and Analyze
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+env:
+  SOLUTION: '**/*.sln'
+  BUILD_CONFIGURATION: 'Release'
+  DOTNET_VERSION: '10.0.x'
+  TEST_PROJECTS: '**/*tests/**/*.csproj'
+  SONAR_PROJECT_KEY: 'stussy2112_Karma.Extensions.AspNetCore'
+  SONAR_ORGANIZATION: 'azure-stussy2112'
+  SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0  # Required for SonarCloud
+        
+    - name: Setup .NET SDK
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: ${{ env.DOTNET_VERSION }}
+        
+    - name: Setup Java (for SonarCloud)
+      uses: actions/setup-java@v4
+      with:
+        distribution: 'temurin'
+        java-version: '17'
+          
+    - name: Cache SonarCloud packages
+      uses: actions/cache@v4
+      with:
+        path: ~/sonar/cache
+        key: ${{ runner.os }}-sonar
+        restore-keys: ${{ runner.os }}-sonar
+        
+    - name: Install SonarCloud scanner
+      run: |
+        dotnet tool install --global dotnet-sonarscanner
+        
+    - name: Restore NuGet packages
+      run: dotnet restore ${{ env.SOLUTION }}
+      
+    - name: Begin SonarCloud analysis
+      run: |
+        dotnet sonarscanner begin \
+          /k:"${{ env.SONAR_PROJECT_KEY }}" \
+          /o:"${{ env.SONAR_ORGANIZATION }}" \
+          /d:sonar.token="${{ secrets.SONAR_TOKEN }}" \
+          /d:sonar.host.url="https://sonarcloud.io" \
+          /d:sonar.cs.vscoveragexml.reportsPaths="TestResults/**/coverage.cobertura.xml" \
+          /d:sonar.exclusions="**/obj/**,**/*.dll,**/samples/**"
+      
+    - name: Build solution
+      run: |
+        dotnet build ${{ env.SOLUTION }} \
+          --no-restore \
+          --configuration ${{ env.BUILD_CONFIGURATION }}
+      
+    - name: Run unit tests
+      run: |
+        dotnet test ${{ env.TEST_PROJECTS }} \
+          --no-build \
+          --configuration ${{ env.BUILD_CONFIGURATION }} \
+          --verbosity normal \
+          --logger "trx;LogFileName=test-results.trx" \
+          --collect:"XPlat Code Coverage" \
+          --results-directory ./TestResults
+          
+    - name: End SonarCloud analysis
+      run: dotnet sonarscanner end /d:sonar.token="${{ secrets.SONAR_TOKEN }}"
+      
+    - name: Publish test results
+      uses: EnricoMi/publish-unit-test-result-action@v2
+      if: always()
+      with:
+        files: |
+          TestResults/**/*.trx
+        
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v4
+      with:
+        files: ./TestResults/**/coverage.cobertura.xml
+        fail_ci_if_error: false
+        token: ${{ secrets.CODECOV_TOKEN }}
