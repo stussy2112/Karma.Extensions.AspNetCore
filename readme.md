@@ -2,6 +2,8 @@
 
 [![Build Status](https://dev.azure.com/stussy2112/Web%20Utilities/_apis/build/status/Karma.Extensions.AspNetCore?branchName=main)](https://dev.azure.com/stussy2112/Web%20Utilities/_build/latest?definitionId=3&branchName=main)
 
+[![Build Status](https://github.com/stussy2112/Karma.Extensions.AspNetCore/actions/workflows/build.yaml/badge.svg)](https://github.com/stussy2112/Karma.Extensions.AspNetCore/actions/workflows/build.yaml)
+
 A powerful ASP.NET Core library that provides automatic model binding for filtering, sorting, and pagination query string parameters. This library simplifies building REST APIs with advanced querying capabilities by parsing complex query strings into strongly-typed objects.
 
 ## Table of Contents
