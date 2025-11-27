@@ -372,9 +372,8 @@ csharp_style_prefer_top_level_statements                                  = true
 
 [*Tests.cs]
 # Disable some rules for test files
-dotnet_diagnostic.CS0169.severity                                        = none
-# Unassigned internal fields
-dotnet_diagnostic.CS0649.severity                                        = none
+# Do not expose generic lists
+dotnet_diagnostic.CA1002.severity                                        = none
 # Do not declare visible instance fields
 dotnet_diagnostic.CA1051.severity                                        = none
 # Properties should not return arrays
@@ -383,6 +382,10 @@ dotnet_diagnostic.CA1819.severity                                        = none
 dotnet_diagnostic.CA1859.severity                                        = none
 # Mark members as static
 dotnet_diagnostic.CA1822.severity                                        = none
+# Avoid unused private fields
+dotnet_diagnostic.CS0169.severity                                        = none
+# Unassigned internal fields
+dotnet_diagnostic.CS0649.severity                                        = none
 # Remove unnecessary suppression
 dotnet_diagnostic.IDE0079.severity                                       = none
 # Parameter names used into ArgumentException constructors should match an existing one

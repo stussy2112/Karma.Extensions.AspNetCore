@@ -26,7 +26,7 @@ namespace Karma.Extensions.AspNetCore
       }
 
       Expression? property = BuildPropertyAccessExpression(parameter, filter.Path!);
-      if (property is null)
+      if (property is null or ConstantExpression { Value: null })
       {
         return TrueExpression; // Property does not exist
       }

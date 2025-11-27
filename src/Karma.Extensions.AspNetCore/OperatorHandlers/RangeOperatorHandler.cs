@@ -45,8 +45,8 @@ namespace Karma.Extensions.AspNetCore
 
     private static Expression BuildBetweenExpression(ParameterExpression parameter, FilterInfo filter)
     {
-      (Expression property, Expression lowerBound, Expression upperBound) = GetBetweenValueExpressions(parameter, filter);
-      if (property is null)
+      (Expression? property, Expression lowerBound, Expression upperBound) = GetBetweenValueExpressions(parameter, filter);
+      if (property is null or ConstantExpression { Value: null })
       {
         return TrueExpression; // Property does not exist
       }
@@ -58,8 +58,8 @@ namespace Karma.Extensions.AspNetCore
 
     private static Expression BuildNotBetweenExpression(ParameterExpression parameter, FilterInfo filter)
     {
-      (Expression property, Expression lowerBound, Expression upperBound) = GetBetweenValueExpressions(parameter, filter);
-      if (property is null)
+      (Expression? property, Expression lowerBound, Expression upperBound) = GetBetweenValueExpressions(parameter, filter);
+      if (property is null or ConstantExpression { Value: null })
       {
         return TrueExpression; // Property does not exist
       }
@@ -69,10 +69,17 @@ namespace Karma.Extensions.AspNetCore
           Expression.GreaterThan(property, upperBound));
     }
 
-    private static (Expression property, ConstantExpression lowerBound, ConstantExpression upperBound) GetBetweenValueExpressions(ParameterExpression parameter, FilterInfo filter)
+    private static (Expression? property, ConstantExpression lowerBound, ConstantExpression upperBound) GetBetweenValueExpressions(ParameterExpression parameter, FilterInfo filter)
     {
       string propertyName = filter.Path!;
       (Expression property, IEnumerable<ConstantExpression> comparisonValueExpressions) = BuildValueAccessExpressions(parameter, propertyName, filter.Values);
+      
+      // If property doesn't exist, return null for all expressions
+      if (property is null or ConstantExpression { Value: null })
+      {
+        return (property, Expression.Constant(null), Expression.Constant(null));
+      }
+      
       ConstantExpression lowerBoundExpr = comparisonValueExpressions.ElementAt(0);
       ConstantExpression upperBoundExpr = comparisonValueExpressions.ElementAt(1);
       return (property, lowerBoundExpr, upperBoundExpr);
