@@ -67,7 +67,7 @@ namespace Karma.Extensions.AspNetCore
     [return: NotNullIfNotNull(nameof(source))]
     public static IEnumerable<T>? Apply<T>(this FilterInfoCollection? filter, IEnumerable<T>? source)
     {
-      if (source is null || filter is null || !source.Any())
+      if (source is null || filter is null)
       {
         return source;
       }
@@ -84,7 +84,7 @@ namespace Karma.Extensions.AspNetCore
     /// <returns>An enumerable containing the paginated subset of the source sequence, or the original source if it is null, empty, or if page information is null.</returns>
     [return: NotNullIfNotNull(nameof(source))]
     public static IEnumerable<T>? Apply<T>(this PageInfo pageInfo, IEnumerable<T>? source) =>
-      source is null || pageInfo is null || !source.Any()
+      source is null || pageInfo is null
         ? source
         : source.PaginateWithOffset(pageInfo);
 
@@ -109,7 +109,7 @@ namespace Karma.Extensions.AspNetCore
     {
       ArgumentNullException.ThrowIfNull(cursorProperty);
 
-      if (source is null || pageInfo is null || !source.Any())
+      if (source is null || pageInfo is null)
       {
         return source;
       }
@@ -155,7 +155,7 @@ namespace Karma.Extensions.AspNetCore
     {
       ArgumentNullException.ThrowIfNull(cursorProperty);
 
-      if (source is null || pageInfo is null || !source.Any())
+      if (source is null || pageInfo is null)
       {
         return source;
       }
@@ -248,6 +248,41 @@ namespace Karma.Extensions.AspNetCore
       {
         return source;
       }
+
+      return pageInfo.Apply(source);
+    }
+
+    /// <summary>
+    /// Paginates the specified sequence using the provided page number and page size.
+    /// </summary>
+    /// <typeparam name="T">The type of elements in the source sequence.</typeparam>
+    /// <param name="source">The sequence of elements to paginate. If null, returns null.</param>
+    /// <param name="pageNumber">The page number to retrieve. If less than 1, defaults to 1.</param>
+    /// <param name="pageSize">The number of elements to include in each page. If less than 1, returns the original sequence.</param>
+    /// <returns>A paginated subset of the source sequence, or the original sequence if <paramref name="pageSize"/> is invalid.</returns>
+    /// /// <remarks>
+    /// This method uses 1-based page numbering. For large page numbers with in-memory collections,
+    /// consider using <see cref="List{T}"/> or <see cref="IQueryable{T}"/> for better performance.
+    /// </remarks>
+    [return: NotNullIfNotNull(nameof(source))]
+    public static IEnumerable<T>? Page<T>(this IEnumerable<T>? source, int pageNumber, int pageSize)
+    {
+      if (source is null || pageSize <= 0)
+      {
+        return source;
+      }
+
+      if (pageNumber <= 0)
+      {
+        pageNumber = 1;
+      }
+
+      int skip = checked((pageNumber - 1) * pageSize);
+
+      uint offset = (uint)skip;
+      uint limit = (uint)pageSize;
+
+      PageInfo pageInfo = new (offset, limit);
 
       return pageInfo.Apply(source);
     }

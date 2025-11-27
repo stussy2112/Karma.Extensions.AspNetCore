@@ -68,7 +68,7 @@ This document outlines the mandatory requirements for using Copilot in this repo
    - `.github/instructions/coding-guidelines.instructions.md` (when working with any C# code)
    - `.github/instructions/coding-style.instructions.md` (when working with any C# code)
    - `.github/instructions/testing-mstest.instructions.md` (when working with tests)
-3. Execute `get_file` for relevant prompt files based on the task:
+3. **Execute `get_file` for relevant prompt files** based on the task:
    - `.github/prompts/code-review.prompt.md` (when performing code reviews)
 
 **STEP 2 - Reload Target Code Files (MANDATORY):**

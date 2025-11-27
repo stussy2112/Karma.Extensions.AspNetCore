@@ -55,7 +55,7 @@ namespace Karma.Extensions.AspNetCore.Tests
 
       // Assert
       Assert.IsNotNull(result);
-      Assert.AreSame(source, result);
+      Assert.AreEqual(0, result.Count());
     }
 
     [TestMethod]
@@ -70,7 +70,7 @@ namespace Karma.Extensions.AspNetCore.Tests
 
       // Assert
       Assert.IsNotNull(result);
-      Assert.AreSame(source, result);
+      Assert.AreEqual(0, result.Count());
     }
 
     [TestMethod]
