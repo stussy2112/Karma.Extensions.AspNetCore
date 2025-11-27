@@ -14,8 +14,8 @@ env:
   SOLUTION: 'Karma.Extensions.AspNetCore.sln'
   BUILD_CONFIGURATION: 'Release'
   DOTNET_VERSION: '10.0.x'
-  SONAR_PROJECT_KEY: 'stussy2112_Karma.Extensions.AspNetCore'
-  SONAR_ORGANIZATION: 'azure-stussy2112'
+  SONAR_PROJECT_KEY: 'stussy2112_Karma.Extensions.AspNetCore2'
+  SONAR_ORGANIZATION: 'github-stussy2112'
   TEST_RESULTS: './TestResults'
 
 jobs:

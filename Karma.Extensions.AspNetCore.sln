@@ -37,13 +37,20 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = ".github", ".github", "{6B91
 		.github\workflows\build.yaml = .github\workflows\build.yaml
 	EndProjectSection
 EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "actions", "actions", "{00FCCDE7-5C80-4078-8228-BB1F9E1F098B}"
-EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Test", "Test", "{F92A3C3C-7F2A-4DE6-AE77-201D4F91BAD3}"
+	ProjectSection(SolutionItems) = preProject
+		.github\actions\run-tests\action.yml = .github\actions\run-tests\action.yml
+	EndProjectSection
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Setup", "Setup", "{47748913-8DB1-4C71-801C-71C9DDB1F54A}"
+	ProjectSection(SolutionItems) = preProject
+		.github\actions\setup-environment\action.yml = .github\actions\setup-environment\action.yml
+	EndProjectSection
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Publish", "Publish", "{111CFDA5-6DED-4C66-A944-F0F4B36460E4}"
+	ProjectSection(SolutionItems) = preProject
+		.github\actions\publish-results\action.yml = .github\actions\publish-results\action.yml
+	EndProjectSection
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -102,9 +109,9 @@ Global
 		{927816FE-8C46-463F-8629-76B8D4B31788} = {BAFB96BF-E200-4581-98CE-47949B07A086}
 		{6B912DBB-AC5F-43B2-B78E-084304C12E70} = {089100B1-113F-4E66-888A-E83F3999EAFD}
 		{00FCCDE7-5C80-4078-8228-BB1F9E1F098B} = {6B912DBB-AC5F-43B2-B78E-084304C12E70}
-		{F92A3C3C-7F2A-4DE6-AE77-201D4F91BAD3} = {00FCCDE7-5C80-4078-8228-BB1F9E1F098B}
-		{47748913-8DB1-4C71-801C-71C9DDB1F54A} = {00FCCDE7-5C80-4078-8228-BB1F9E1F098B}
-		{111CFDA5-6DED-4C66-A944-F0F4B36460E4} = {00FCCDE7-5C80-4078-8228-BB1F9E1F098B}
+		{F92A3C3C-7F2A-4DE6-AE77-201D4F91BAD3} = {6B912DBB-AC5F-43B2-B78E-084304C12E70}
+		{47748913-8DB1-4C71-801C-71C9DDB1F54A} = {6B912DBB-AC5F-43B2-B78E-084304C12E70}
+		{111CFDA5-6DED-4C66-A944-F0F4B36460E4} = {6B912DBB-AC5F-43B2-B78E-084304C12E70}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {A6372200-84F2-4043-87EE-21513449471A}
