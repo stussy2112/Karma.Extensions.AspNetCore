@@ -575,25 +575,6 @@ namespace Karma.Extensions.AspNetCore.Tests.OperatorHandlers
     }
 
     [TestMethod]
-    public void When_EndsWith_With_DateTime_Property_BuildExpression_Converts_To_String()
-    {
-      // Arrange
-      ParameterExpression parameter = Expression.Parameter(typeof(TestEntity), "x");
-      FilterInfo filter = new ("CreatedDate", nameof(TestEntity.CreatedDate), Operator.EndsWith, "AM");
-
-      // Act
-      Expression expression = _handler.BuildExpression(parameter, filter);
-      Func<TestEntity, bool> compiled = Expression.Lambda<Func<TestEntity, bool>>(expression, parameter).Compile();
-
-      // Assert
-      // This test depends on culture settings for DateTime.ToString()
-      // In most US cultures, times before noon end with "AM"
-      TestEntity testEntity = new () { CreatedDate = new DateTime(2023, 1, 1, 10, 0, 0, DateTimeKind.Utc) };
-      TestContext.WriteLine(testEntity.CreatedDate.ToString());
-      Assert.IsTrue(compiled(testEntity));
-    }
-
-    [TestMethod]
     public void When_StartsWith_With_Guid_Property_BuildExpression_Converts_To_String()
     {
       // Arrange
