@@ -19,6 +19,8 @@ namespace Karma.Extensions.AspNetCore.Tests.OperatorHandlers
   {
     private StringOperatorHandler _handler = null!;
 
+    public TestContext TestContext { get; set; }
+
     [TestInitialize]
     public void TestInitialize() => _handler = new StringOperatorHandler();
 
@@ -577,7 +579,7 @@ namespace Karma.Extensions.AspNetCore.Tests.OperatorHandlers
     {
       // Arrange
       ParameterExpression parameter = Expression.Parameter(typeof(TestEntity), "x");
-      FilterInfo filter = new("CreatedDate", nameof(TestEntity.CreatedDate), Operator.EndsWith, "AM");
+      FilterInfo filter = new ("CreatedDate", nameof(TestEntity.CreatedDate), Operator.EndsWith, "AM");
 
       // Act
       Expression expression = _handler.BuildExpression(parameter, filter);
@@ -586,7 +588,9 @@ namespace Karma.Extensions.AspNetCore.Tests.OperatorHandlers
       // Assert
       // This test depends on culture settings for DateTime.ToString()
       // In most US cultures, times before noon end with "AM"
-      Assert.IsTrue(compiled(new TestEntity { CreatedDate = new DateTime(2023, 1, 1, 10, 0, 0, DateTimeKind.Unspecified) }));
+      TestEntity testEntity = new () { CreatedDate = new DateTime(2023, 1, 1, 10, 0, 0, DateTimeKind.Utc) };
+      TestContext.WriteLine(testEntity.CreatedDate.ToString());
+      Assert.IsTrue(compiled(testEntity));
     }
 
     [TestMethod]
