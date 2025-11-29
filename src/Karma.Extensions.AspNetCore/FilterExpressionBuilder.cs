@@ -74,12 +74,13 @@ namespace Karma.Extensions.AspNetCore
         new RegexOperatorHandler(),
       ];
 
-      Dictionary<Operator, IOperatorHandler> operatorMap = new ();
+      Dictionary<Operator, IOperatorHandler> operatorMap = [];
 
       // Build mapping by checking which operators each handler can handle
+      Operator[] operators = Enum.GetValues<Operator>();
       foreach (IOperatorHandler handler in handlers)
       {
-        foreach (Operator op in Enum.GetValues<Operator>().Where(handler.CanHandle))
+        foreach (Operator op in operators.Where(handler.CanHandle))
         {
           operatorMap[op] = handler;
         }
