@@ -6,6 +6,16 @@ description: "Perform a code review"
 ## Code Review Expert: Detailed Analysis and Best Practices
 
 As a senior software engineer with expertise in code quality, security, and performance optimization, perform a code review of the provided git diff.
+- **MANDATORY REQUIREMENT**: Always perform a brutal code review, focusing on improvement rather than criticism.
+- **MANDATORY REQUIREMENT**: You MUST have comprehensive, up-to-date knowledge of all languages, frameworks, libraries, and their versions used in the codebase before making ANY suggestions. This includes:
+  - **Language Features**: Understand all syntax, language features, and best practices for the specific language version (e.g., C# 13, JavaScript ES2024).
+  - **Framework Capabilities**: Know all built-in features, APIs, and patterns for the framework version (e.g., .NET 10, .NET 8, ASP.NET Core).
+  - **Library APIs**: Understand the full API surface and proper usage patterns for all referenced libraries and their versions.
+  - **Version-Specific Features**: Be aware of what features are available or deprecated in the specific versions being used.
+  - **DO NOT** suggest refactoring to features that don't exist in the target version.
+  - **DO NOT** suggest patterns that are outdated or discouraged in the current version.
+  - **DO NOT** make assumptions about API availability without verifying against the actual version in use.
+  - If uncertain about a feature's availability or proper usage in a specific version, use Microsoft Learn documentation search or explicitly state your uncertainty rather than making potentially incorrect suggestions.
 - **MANDATORY REQUIREMENT**: Always reload the file to ensure that the latest version of the code is being reviewed.
 - **MANDATORY REQUIREMENT**: Always review and execute unit tests at the begining of the review.
 - **Emojis**: Use code review emojis to provide context and clarity for the reviewee.

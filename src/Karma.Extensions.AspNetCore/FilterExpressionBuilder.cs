@@ -21,9 +21,27 @@ namespace Karma.Extensions.AspNetCore
   /// of filter operations, including logical combinations of conditions.</remarks>
   public static class FilterExpressionBuilder
   {
-    private const string DefaultParameterName = "entity";
+    private const string DefaultExpressionParameterName = "entity";
     private static readonly FrozenDictionary<Operator, IOperatorHandler> _operatorHandlerMap = CreateOperatorHandlerMap();
     private static readonly Expression _trueExpression = Expression.Constant(true);
+
+    /// <summary>
+    /// Builds a LINQ expression that represents a filter predicate based on the provided collection of filter criteria.
+    /// </summary>
+    /// <typeparam name="T">The type of the object being filtered.</typeparam>
+    /// <param name="filters">A collection of filters to apply to the objects.</param>
+    /// <returns>A LINQ expression that can be used to filter a collection of objects.</returns>
+    public static Expression<Func<T, bool>> BuildExpression<T>(IEnumerable<IFilterInfo> filters)
+    {
+      if (filters is null || !filters.Any())
+      {
+        return (entity) => true;
+      }
+
+      ParameterExpression parameter = Expression.Parameter(typeof(T), DefaultExpressionParameterName);
+      Expression expression = BuildMultipleFilterExpression<T>(parameter, filters);
+      return Expression.Lambda<Func<T, bool>>(expression, parameter);
+    }
 
     /// <summary>
     /// Builds a lambda function that evaluates whether an object of type <typeparamref name="T"/> satisfies the
@@ -36,19 +54,8 @@ namespace Karma.Extensions.AspNetCore
     /// <param name="filters">A collection of filters that define the conditions to be applied to objects of type <typeparamref name="T"/>.</param>
     /// <returns>A compiled lambda function that returns <see langword="true"/> if the object satisfies all the specified
     /// filters; otherwise, <see langword="false"/>.</returns>
-    public static Func<T, bool> BuildLambda<T>(IEnumerable<IFilterInfo> filters)
-    {
-      if (filters == null || !filters.Any())
-      {
-        return Expression.Lambda<Func<T, bool>>(_trueExpression, Expression.Parameter(typeof(T), DefaultParameterName)).Compile();
-      }
-
-      ParameterExpression parameter = Expression.Parameter(typeof(T), DefaultParameterName);
-      Expression expression = BuildMultipleFilterExpression<T>(parameter, filters);
-      var lambda = Expression.Lambda<Func<T, bool>>(expression, parameter);
-
-      return lambda.Compile();
-    }
+    public static Func<T, bool> BuildLambda<T>(IEnumerable<IFilterInfo> filters) =>
+      BuildExpression<T>(filters).Compile();
 
     /// <summary>
     /// Creates a dictionary mapping each operator to its corresponding handler.
@@ -67,7 +74,7 @@ namespace Karma.Extensions.AspNetCore
         new RegexOperatorHandler(),
       ];
 
-      var operatorMap = new Dictionary<Operator, IOperatorHandler>();
+      Dictionary<Operator, IOperatorHandler> operatorMap = new ();
 
       // Build mapping by checking which operators each handler can handle
       foreach (IOperatorHandler handler in handlers)
@@ -113,7 +120,7 @@ namespace Karma.Extensions.AspNetCore
     /// expression always evaluates to <see langword="true"/>.</returns>
     private static Expression BuildMultipleFilterExpression<T>(ParameterExpression parameter, IEnumerable<IFilterInfo>? filters)
     {
-      if (filters == null || !filters.Any())
+      if (filters is null || !filters.Any())
       {
         return _trueExpression;
       }
@@ -148,7 +155,7 @@ namespace Karma.Extensions.AspNetCore
     /// <exception cref="NotSupportedException">Thrown when an unsupported operator is encountered.</exception>
     private static Expression BuildSingleFilterExpression(ParameterExpression parameter, FilterInfo filter)
     {
-      if (filter == null || string.IsNullOrWhiteSpace(filter.Path))
+      if (filter is null || string.IsNullOrWhiteSpace(filter.Path))
       {
         return _trueExpression; // No valid filter to compare
       }
@@ -163,6 +170,7 @@ namespace Karma.Extensions.AspNetCore
 
     private static Expression CombineExpressions(List<Expression> expressions, Conjunction conjunction)
     {
+      // If all filters are null or invalid, return true (match everything)
       if (expressions.Count == 0)
       {
         return _trueExpression;

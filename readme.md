@@ -42,6 +42,7 @@ A powerful ASP.NET Core library that provides automatic model binding for filter
 - ✅ **Type Safety** - Immutable records with compile-time type checking
 - ✅ **Extensible** - Custom pattern providers and parsing strategies
 - ✅ **LINQ Integration** - Extension methods for applying operations to IEnumerable<T>
+- ✅ **Expression Tree Building** - Compile-time expression generation for optimal performance with Entity Framework Core
 
 ## Installation
 
@@ -92,7 +93,7 @@ public IActionResult GetProducts(
     [FromQuery(Name = "page")] PageInfo? pageInfo = null)
 {
     var products = _repository.GetAll();
-    return Ok(products.Apply(filters).Apply(sortInfos).Apply(pageInfo));
+    return Ok(products.Filter(filters).Sort(sortInfos).Page(pageInfo));
 }
 ```
 
@@ -113,9 +114,9 @@ var paged = pageInfo?.Apply(sorted) ?? sorted;
 
 // Option 2: Fluent chaining (shorter syntax)
 var result = products
-    .Apply(filters)
-    .Apply(sortInfos)
-    .Apply(pageInfo);
+    .Filter(filters)      // Returns products if filters is null
+    .Sort(sortInfos)    // Returns input if sortInfos is null
+    .Page(pageInfo);    // Returns input if pageInfo is null
 ```
 
 The extension methods are designed to handle `null` values gracefully, so you can safely chain operations without checking for null at each step.
@@ -546,7 +547,7 @@ This query:
 GET /api/products?filter[category][$in]=Electronics,Computers&filter[price][$lt]=1000&filter[rating][$gte]=4&sort=-rating,-reviewCount&page[offset]=0&page[limit]=25
 
 # User dashboard with status filter and sorting
-GET /api/users?filter[status][$ne]=deleted&filter[lastLogin][$notnull]=&sort=-lastLogin,lastName,page[offset]=0&page[limit]=50
+GET /api/users?filter[status][$ne]=deleted&filter[lastLogin][$notnull]=&sort=-lastLogin,lastName&page[offset]=0&page[limit]=50
 
 # Order management with date range and status
 GET /api/orders?filter[createdAt][$between]=2024-01-01,2024-12-31&filter[status][$in]=pending,processing&sort=-createdAt&page[offset]=0&page[limit]=100
@@ -812,7 +813,7 @@ GET /api/products?page[offset]=50&page[limit]=25
 # Forward pagination
 GET /api/products?page[after]=lastItemCursor&page[limit]=25
 
-# Backward pagination  
+# Backward pagination
 GET /api/products?page[before]=firstItemCursor&page[limit]=25
 ```
 
@@ -859,7 +860,79 @@ It's recommended to include pagination metadata in responses:
 }
 ```
 
+### Combined Operations
+
+Combine filtering, sorting, and pagination in a single request:
+
+```csharp
+[HttpGet]
+public IActionResult GetProducts(
+    [FromQuery(Name = "filter")] FilterInfoCollection? filters = null,
+    [FromQuery(Name = "sort")] IEnumerable<SortInfo>? sortInfos = null,
+    [FromQuery(Name = "page")] PageInfo? pageInfo = null)
+{
+    IEnumerable<Product> products = _repository.GetAll();
+
+    // IMPORTANT: Apply operations in this order for best results
+    var filtered = filters?.Apply(products) ?? products;
+    var sorted = sortInfos?.Apply(filtered) ?? filtered;
+    var paged = pageInfo?.Apply(sorted) ?? sorted;
+
+    return Ok(paged);
+}
+```
+
 ## API Reference
+
+### FilterExpressionBuilder
+
+The `FilterExpressionBuilder` class provides methods for building LINQ expression trees from `FilterInfoCollection` objects. This is particularly useful for Entity Framework Core scenarios where you need expressions that can be translated to SQL.
+
+```csharp
+public static class FilterExpressionBuilder
+{
+    // Builds a compiled lambda function that evaluates filters
+    public static Func<T, bool> BuildLambda<T>(IEnumerable<IFilterInfo> filters);
+}
+```
+
+**Usage with Entity Framework Core:**
+
+```csharp
+using Karma.Extensions.AspNetCore;
+using Microsoft.EntityFrameworkCore;
+
+[HttpGet]
+public async Task<ActionResult<IEnumerable<Product>>> GetProducts(
+    [FromQuery(Name = "filter")] FilterInfoCollection? filters = null,
+    [FromQuery(Name = "page")] PageInfo? pageInfo = null,
+    CancellationToken cancellationToken = default)
+{
+    IQueryable<Product> query = _context.Products.AsQueryable();
+
+    // Apply filters using compiled expression
+    if (filters?.Any() == true)
+    {
+        var predicate = FilterExpressionBuilder.BuildLambda<Product>(filters);
+        query = query.Where(predicate);
+    }
+
+    // Apply pagination
+    if (pageInfo != null)
+    {
+        query = query.Skip((int)pageInfo.Offset).Take((int)pageInfo.Limit);
+    }
+
+    var results = await query.ToListAsync(cancellationToken);
+    return Ok(results);
+}
+```
+
+**Key Features:**
+- **Type Safety** - Compile-time type checking ensures filter paths match entity properties
+- **NULL Safety** - Automatically handles null property navigation with safe null checks
+- **Type Conversion** - Automatically converts filter values to match property types
+- **Nested Properties** - Supports dotted property paths (e.g., "Address.City")
 
 ### Extension Methods
 
@@ -906,46 +979,121 @@ public static IMvcBuilder AddSortInfoParameterBinding(
 Apply filter, sort, and pagination operations to collections:
 
 ```csharp
-// Apply filters to a collection
-public static IEnumerable<T> Apply<T>(
+// Apply filters to a collection (primary method)
+public static IEnumerable<T>? Apply<T>(
     this FilterInfoCollection? filters,
     IEnumerable<T> source)
 
-// Apply sorting to a collection
-public static IEnumerable<T> Apply<T>(
+// Apply filters to a collection (alternative)
+public static IEnumerable<T>? Filter<T>(
+    this IEnumerable<T> source,
+    FilterInfoCollection? filters)
+
+// Apply sorting to a collection (primary method)
+public static IEnumerable<T>? Apply<T>(
     this IEnumerable<SortInfo>? sortInfos,
     IEnumerable<T> source)
 
-// Apply pagination to a collection
-public static IEnumerable<T> Apply<T>(
+// Apply sorting to a collection (alternative)
+public static IEnumerable<T>? Sort<T>(
+    this IEnumerable<T> source,
+    IEnumerable<SortInfo>? sortInfos)
+
+// Apply pagination to a collection (primary method)
+public static IEnumerable<T>? Apply<T>(
     this PageInfo? pageInfo,
     IEnumerable<T> source)
+
+// Apply pagination to a collection (alternative)
+public static IEnumerable<T>? Page<T>(
+    this IEnumerable<T> source,
+    PageInfo? pageInfo)
+
+// Apply pagination with page number and page size
+public static IEnumerable<T>? Page<T>(
+    this IEnumerable<T>? source,
+    int pageNumber,
+    int pageSize)
+
+// Apply cursor-based pagination with custom cursor property (nullable reference types)
+public static IEnumerable<T>? Apply<T, TValue>(
+    this PageInfo pageInfo,
+    IEnumerable<T>? source,
+    Func<T, TValue?> cursorProperty)
+    where TValue : IComparable<TValue>, IParsable<TValue>
+
+// Apply cursor-based pagination with custom cursor property (nullable value types)
+public static IEnumerable<T>? Apply<T, TValue>(
+    this PageInfo pageInfo,
+    IEnumerable<T>? source,
+    Func<T, TValue?> cursorProperty)
+    where TValue : struct, IComparable<TValue>, IParsable<TValue>
+
+// Apply cursor-based pagination (alternative, nullable reference types)
+public static IEnumerable<T>? Page<T, TValue>(
+    this IEnumerable<T>? source,
+    PageInfo? pageInfo,
+    Func<T, TValue?> cursorProperty)
+    where TValue : IComparable<TValue>, IParsable<TValue>
+
+// Apply cursor-based pagination (alternative, nullable value types)
+public static IEnumerable<T>? Page<T, TValue>(
+    this IEnumerable<T>? source,
+    PageInfo? pageInfo,
+    Func<T, TValue?> cursorProperty)
+    where TValue : struct, IComparable<TValue>, IParsable<TValue>
 ```
 
 **Null-Safety Behavior:**
-- All `Apply()` extension methods handle `null` input gracefully
+- All `Apply()` and alternative extension methods handle `null` input gracefully
 - When the parameter (filters, sortInfos, or pageInfo) is `null`, the original `source` enumerable is returned unchanged
 - This allows safe chaining without explicit null checks
+
+**Method Naming:**
+- **`Apply()`** - Primary fluent-style methods where the operation parameter calls the method
+- **`Filter()`, `Sort()`, `Page()`** - Alternative methods where the collection calls the method
 
 **Usage Examples:**
 ```csharp
 using Karma.Extensions.AspNetCore;
 
-// Applying filters
+// Applying filters - both methods are equivalent
 IEnumerable<Product> products = repository.GetAll();
-var filtered = filters?.Apply(products) ?? products;
+var filtered1 = filters?.Apply(products) ?? products;
+var filtered2 = products.Filter(filters);
 
-// Applying sorting
-var sorted = sortInfos?.Apply(filtered) ?? filtered;
+// Applying sorting - both methods are equivalent
+var sorted1 = sortInfos?.Apply(filtered1) ?? filtered1;
+var sorted2 = filtered1.Sort(sortInfos);
 
-// Applying pagination
-var paged = pageInfo?.Apply(sorted) ?? sorted;
+// Applying pagination - multiple options
+var paged1 = pageInfo?.Apply(sorted1) ?? sorted1;
+var paged2 = sorted1.Page(pageInfo);
+var paged3 = sorted1.Page(pageNumber: 1, pageSize: 10);
+
+// Cursor-based pagination with custom property
+var pagedWithCursor = pageInfo?.Apply(sorted1, p => p.Id) ?? sorted1;
 
 // Chaining operations - null-safe fluent API
 var result = products
-    .Apply(filters)      // Returns products if filters is null
-    .Apply(sortInfos)    // Returns input if sortInfos is null
-    .Apply(pageInfo);    // Returns input if pageInfo is null
+    .Filter(filters)      // Returns products if filters is null
+    .Sort(sortInfos)    // Returns input if sortInfos is null
+    .Page(pageInfo);    // Returns input if pageInfo is null
+```
+
+**Cursor-Based Pagination Examples:**
+```csharp
+// Using integer ID as cursor
+var products = repository.GetAll();
+var cursorPaged = pageInfo?.Apply(products, p => p.Id) ?? products;
+
+// Using Guid as cursor
+var orders = repository.GetOrders();
+var guidPaged = pageInfo?.Apply(orders, o => o.OrderId) ?? orders;
+
+// Using DateTime as cursor
+var logs = repository.GetLogs();
+var datePaged = pageInfo?.Apply(logs, l => l.CreatedAt) ?? logs;
 ```
 
 **Entity Framework Core / IQueryable Example:**
@@ -972,12 +1120,6 @@ public async Task<ActionResult<IEnumerable<Product>>> GetProducts(
         query = query.Where(predicate);
     }
 
-    // Apply sorting (if ApplySorting extension exists for IQueryable)
-    if (sortInfos?.Any() == true)
-    {
-        query = query.ApplySorting(sortInfos);
-    }
-
     // Apply pagination
     if (pageInfo != null)
     {
@@ -989,7 +1131,7 @@ public async Task<ActionResult<IEnumerable<Product>>> GetProducts(
 }
 ```
 
-**Note:** The `Apply()` extension methods work on `IEnumerable<T>` for in-memory collections. For database queries (`IQueryable<T>`), use `FilterExpressionBuilder.BuildLambda()` to create expressions that can be translated to SQL.
+**Note:** The `Apply()`, `Filter()`, `Sort()`, and `Page()` extension methods work on `IEnumerable<T>` for in-memory collections. For database queries (`IQueryable<T>`), use `FilterExpressionBuilder.BuildLambda()` to create expressions that can be translated to SQL.
 
 ### Core Types
 
@@ -1110,8 +1252,8 @@ public enum Operator
 ```csharp
 public enum Conjunction
 {
-    And,
-    Or
+    And,  // Combines filters where ALL conditions must be true
+    Or    // Combines filters where ANY condition can be true
 }
 ```
 
