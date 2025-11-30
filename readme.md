@@ -42,7 +42,7 @@ A powerful ASP.NET Core library that provides automatic model binding for filter
 - ✅ **Type Safety** - Immutable records with compile-time type checking
 - ✅ **Extensible** - Custom pattern providers and parsing strategies
 - ✅ **LINQ Integration** - Extension methods for applying operations to IEnumerable<T>
-- ✅ **Expression Tree Building** - Compile-time expression generation for optimal performance with Entity Framework Core
+- ✅ **Expression Tree Building** - Compiled expression generation for optimal performance with Entity Framework Core
 
 ## Installation
 
@@ -59,8 +59,7 @@ Install-Package Karma.Extensions.AspNetCore
 ```
 
 **Supported Frameworks:**
-- .NET 8.0
-- .NET 10.0
+- .NET 8.0 (library target). Tests and samples in the repository may target other TFMs such as .NET 10.0.
 
 ## Usage Approaches
 
@@ -191,10 +190,47 @@ public class ProductsController : ControllerBase
 
 **Working Sample:** See [WeatherForecastController.cs](Samples/Karma.Extensions.AspNetCore.Samples.WebApi/Controllers/WeatherForecastController.cs) for a complete example including advanced filter groups and OR operations.
 
+**Alternative: Entity Framework Core**
+
+```csharp
+using Karma.Extensions.AspNetCore;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+
+[ApiController]
+[Route("api/[controller]")]
+public class ProductsController : ControllerBase
+{
+    private readonly ApplicationDbContext _context;
+
+    public ProductsController(ApplicationDbContext context)
+    {
+        _context = context;
+    }
+
+    [HttpGet]
+    public async Task<ActionResult<IEnumerable<Product>>> GetProducts(
+        [FromQuery(Name = "filter")] FilterInfoCollection? filters = null,
+        [FromQuery(Name = "sort")] IEnumerable<SortInfo>? sortInfos = null,
+        [FromQuery(Name = "page")] PageInfo? pageInfo = null,
+        CancellationToken cancellationToken = default)
+    {
+        // Build query - note the Apply() pattern
+        IQueryable<Product> query = _context.Products.Filter(filters);
+        query = sortInfos?.Apply(query) ?? query;
+        query = pageInfo?.Apply(query) ?? query;
+
+        // Execute query at database level
+        var results = await query.ToListAsync(cancellationToken);
+        return Ok(results);
+    }
+}
+```
+
 ### 3. Make API Calls
 
 ```http
-GET /api/products?filter[name]=contains:laptop&sort=-price&page[offset]=0&page[limit]=10
+GET /api/products?filter[name][$contains]=laptop&sort=-price&page[offset]=0&page[limit]=10
 ```
 
 ## Core Concepts
@@ -221,6 +257,8 @@ var pageInfo = new PageInfo(after: "cursor123", limit: 10);
 var pageInfo = new PageInfo(); // Returns all items
 ```
 
+> Note: the `PageInfo(string after, uint limit = ...)` constructor validates `after` and will throw an `ArgumentException` if `after` is null or whitespace. `Limit` defaults to `uint.MaxValue` when not specified.
+
 ### FilterInfo and FilterInfoCollection
 
 `FilterInfo` represents a single filter condition, while `FilterInfoCollection` groups multiple filters with logical conjunctions.
@@ -229,7 +267,7 @@ var pageInfo = new PageInfo(); // Returns all items
 - `Name` (string) - Filter identifier
 - `Path` (string) - Property path to filter on
 - `Operator` (Operator) - Comparison operator
-- `Values` (IReadOnlyCollection<object>) - Values to compare against
+- `Value` (IReadOnlyCollection&lt;object&gt;) - Values to compare against
 - `MemberOf` (string) - Parent group name
 
 **FilterInfoCollection Properties:**
@@ -275,6 +313,8 @@ SortInfo sort = "Name";
 SortInfo sort = "-Price"; // Descending
 ```
 
+> Note: `SortInfo` constructor validates the provided field name and will throw `ArgumentException` for invalid inputs (for example, a string that is just `"-"`). The `SortInfoModelBinder`/binder logic will skip invalid sort entries when parsing request data.
+
 ### Operators
 
 The library supports 18 comparison operators:
@@ -284,9 +324,9 @@ The library supports 18 comparison operators:
 | Equal To | `EqualTo` | `eq` | Equality comparison |
 | Not Equal To | `NotEqualTo` | `ne` | Inequality comparison |
 | Less Than | `LessThan` | `lt` | Less than comparison |
-| Less Than Or Equal | `LessThanOrEqualTo` | `le` | Less than or equal comparison |
+| Less Than Or Equal | `LessThanOrEqualTo` | `le`, `lte` | Less than or equal comparison |
 | Greater Than | `GreaterThan` | `gt` | Greater than comparison |
-| Greater Than Or Equal | `GreaterThanOrEqualTo` | `ge` | Greater than or equal comparison |
+| Greater Than Or Equal | `GreaterThanOrEqualTo` | `ge`, `gte` | Greater than or equal comparison |
 | Between | `Between` | `between` | Inclusive range check |
 | Not Between | `NotBetween` | `notbetween` | Exclusive range check |
 | Contains | `Contains` | `contains` | String contains check |
@@ -368,7 +408,7 @@ public IActionResult GetProducts([FromQuery(Name = "page")] PageInfo? pageInfo =
 ```http
 GET /api/products?page[offset]=0&page[limit]=10    # First page, 10 items
 GET /api/products?page[offset]=10&page[limit]=10   # Second page, 10 items
-GET /api/products?page[limit]=5                     # First 5 items
+GET /api/products?page[limit]=5                    # First 5 items
 ```
 
 #### Cursor-Based Pagination
@@ -387,6 +427,11 @@ public IActionResult GetProducts([FromQuery(Name = "page")] PageInfo? pageInfo =
 ```http
 GET /api/products?page[after]=cursor123&page[limit]=10
 GET /api/products?page[before]=cursor456&page[limit]=10
+```
+
+> Note: Cursor-based overloads that accept a cursor property require the cursor value type to implement `IComparable<T>` and `IParsable<T>` (e.g., `int`, `Guid`, `DateTime`). Example usage (IEnumerable):
+```csharp
+var cursorPaged = pageInfo?.Apply(products, p => p.Id) ?? products;
 ```
 
 ### Filtering
@@ -408,6 +453,7 @@ public IActionResult GetProducts(
 ```http
 # Equal to
 GET /api/products?filter[category][$eq]=Electronics
+GET /api/products?filter[category]=Electronics      // Defaults to $eq
 
 # Greater than
 GET /api/products?filter[price][$gt]=100
@@ -447,6 +493,12 @@ For simple OR conditions on the same field, use the `$in` operator:
 
 ```http
 GET /api/products?filter[category][$in]=Electronics,Computers
+```
+
+For complex conditions, use filter groups with `$or`:
+
+```http
+filter[group][$or]=search&filter[search][0][name][$contains]=laptop&filter[search][1][sku][$contains]=laptop
 ```
 
 ### Sorting
@@ -547,7 +599,7 @@ This query:
 GET /api/products?filter[category][$in]=Electronics,Computers&filter[price][$lt]=1000&filter[rating][$gte]=4&sort=-rating,-reviewCount&page[offset]=0&page[limit]=25
 
 # User dashboard with status filter and sorting
-GET /api/users?filter[status][$ne]=deleted&filter[lastLogin][$notnull]=&sort=-lastLogin,lastName&page[offset]=0&page[limit]=50
+GET /api/users?filter[status][$ne]=deleted&filter[lastLogin][$notnull]=&sort=-lastLogin,lastName,firstName&page[offset]=0&page[limit]=50
 
 # Order management with date range and status
 GET /api/orders?filter[createdAt][$between]=2024-01-01,2024-12-31&filter[status][$in]=pending,processing&sort=-createdAt&page[offset]=0&page[limit]=100
@@ -891,6 +943,9 @@ The `FilterExpressionBuilder` class provides methods for building LINQ expressio
 ```csharp
 public static class FilterExpressionBuilder
 {
+    // Builds a LINQ expression tree that represents a filter predicate
+    public static Expression<Func<T, bool>> BuildExpression<T>(IEnumerable<IFilterInfo> filters);
+    
     // Builds a compiled lambda function that evaluates filters
     public static Func<T, bool> BuildLambda<T>(IEnumerable<IFilterInfo> filters);
 }
@@ -933,6 +988,17 @@ public async Task<ActionResult<IEnumerable<Product>>> GetProducts(
 - **NULL Safety** - Automatically handles null property navigation with safe null checks
 - **Type Conversion** - Automatically converts filter values to match property types
 - **Nested Properties** - Supports dotted property paths (e.g., "Address.City")
+
+**When you need the expression tree itself (not compiled)**
+```csharp
+Expression<Func<Product, bool>> filterExpression = FilterExpressionBuilder.BuildExpression<Product>(filters);
+
+// Useful for inspection, debugging, or combining with other expressions
+Console.WriteLine($"Filter expression: {filterExpression}");
+
+// Can still be compiled later if needed
+Func<Product, bool> compiled = filterExpression.Compile();
+```
 
 ### Extension Methods
 
@@ -1096,42 +1162,74 @@ var logs = repository.GetLogs();
 var datePaged = pageInfo?.Apply(logs, l => l.CreatedAt) ?? logs;
 ```
 
-**Entity Framework Core / IQueryable Example:**
+### Entity Framework Core Integration
 
-For `IQueryable<T>` scenarios with Entity Framework Core, you can apply filters, sorting, and pagination before materializing the query:
+For database queries with Entity Framework Core, use `IQueryable<T>` methods to ensure all operations are translated to SQL:
 
 ```csharp
-using Karma.Extensions.AspNetCore;
-using Microsoft.EntityFrameworkCore;
-
 [HttpGet]
-public async Task<ActionResult<IEnumerable<Product>>> GetProducts(
+public async Task<ActionResult<PagedResult<Product>>> GetProducts(
     [FromQuery(Name = "filter")] FilterInfoCollection? filters = null,
     [FromQuery(Name = "sort")] IEnumerable<SortInfo>? sortInfos = null,
     [FromQuery(Name = "page")] PageInfo? pageInfo = null,
     CancellationToken cancellationToken = default)
 {
-    IQueryable<Product> query = _context.Products.AsQueryable();
+    // Build query - each operation returns IQueryable<T>
+    IQueryable<Product> query = _context.Products.Filter(filters);
+    query = sortInfos?.Apply(query) ?? query;
+    query = pageInfo?.Apply(query) ?? query;
 
-    // Apply filters using compiled expression
-    if (filters?.Any() == true)
+    // Get total count before pagination
+    int totalCount = await _context.Products.Filter(filters).CountAsync(cancellationToken);
+
+    // Materialize the query (executes SELECT query with filters, sorting, and pagination)
+    List<Product> results = await query.ToListAsync(cancellationToken);
+
+    return Ok(new PagedResult<Product>
     {
-        var predicate = FilterExpressionBuilder.BuildLambda<Product>(filters);
-        query = query.Where(predicate);
-    }
-
-    // Apply pagination
-    if (pageInfo != null)
-    {
-        query = query.Skip((int)pageInfo.Offset).Take((int)pageInfo.Limit);
-    }
-
-    var results = await query.ToListAsync(cancellationToken);
-    return Ok(results);
+        Data = results,
+        TotalCount = totalCount,
+        Offset = pageInfo?.Offset ?? 0,
+        Limit = pageInfo?.Limit ?? (uint)results.Count
+    });
 }
 ```
 
-**Note:** The `Apply()`, `Filter()`, `Sort()`, and `Page()` extension methods work on `IEnumerable<T>` for in-memory collections. For database queries (`IQueryable<T>`), use `FilterExpressionBuilder.BuildLambda()` to create expressions that can be translated to SQL.
+**Key Points:**
+- ✅ Use `IQueryable<T>` methods to build the query
+- ✅ All operations (`Filter()`, `Apply()` for sort/page) return `IQueryable<T>`
+- ✅ Use the pattern: `query = operation?.Apply(query) ?? query`
+- ✅ Get the count before applying pagination
+- ✅ Use `CancellationToken` for async operations
+- ❌ Don't convert to `IEnumerable<T>` before applying operations
+
+**Alternative Syntax Options:**
+
+```csharp
+// Option 1: Explicit null-coalescing (recommended)
+IQueryable<Product> query = _context.Products.Filter(filters);
+query = sortInfos?.Apply(query) ?? query;
+query = pageInfo?.Apply(query) ?? query;
+
+// Option 2: Inline application
+var query = pageInfo?.Apply(
+    sortInfos?.Apply(
+        _context.Products.Filter(filters)
+    ) ?? _context.Products.Filter(filters)
+) ?? sortInfos?.Apply(_context.Products.Filter(filters)) ?? _context.Products.Filter(filters);
+
+// Option 3: Traditional LINQ (most verbose)
+IQueryable<Product> query = _context.Products.Filter(filters);
+if (sortInfos != null && sortInfos.Any())
+{
+    // Manual sorting with Apply
+    query = sortInfos.Apply(query) ?? query;
+}
+if (pageInfo != null)
+{
+    query = pageInfo.Apply(query) ?? query;
+}
+```
 
 ### Core Types
 

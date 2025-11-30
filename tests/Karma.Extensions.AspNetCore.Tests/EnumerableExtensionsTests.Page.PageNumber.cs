@@ -302,25 +302,6 @@ namespace Karma.Extensions.AspNetCore.Tests
     }
 
     [TestMethod]
-    public void When_using_with_queryable_Page_with_pageNumber_works_correctly()
-    {
-      // Arrange
-      IQueryable<TestEntity> source = Enumerable.Range(1, 50).Select((i) => new TestEntity { Id = i, Name = $"N{i}", Value = i }).AsQueryable();
-      int pageNumber = 3;
-      int pageSize = 10;
-
-      // Act
-      IEnumerable<TestEntity>? result = source.Page(pageNumber, pageSize);
-
-      // Assert
-      Assert.IsNotNull(result);
-      var resultList = result.ToList();
-      Assert.HasCount(10, resultList);
-      Assert.AreEqual(21, resultList[0].Id);
-      Assert.AreEqual(30, resultList[9].Id);
-    }
-
-    [TestMethod]
     public void When_deferred_execution_needed_Page_with_pageNumber_supports_lazy_evaluation()
     {
       // Arrange

@@ -1,0 +1,9 @@
+Running tests from C:\Source\Karma.Extensions.AspNetCore\tests\Karma.Extensions.AspNetCore.Tests\bin\Debug\net10.0\Karma.Extensions.AspNetCore.Tests.dll (net10.0|x64)
+C:\Source\Karma.Extensions.AspNetCore\tests\Karma.Extensions.AspNetCore.Tests\bin\Debug\net10.0\Karma.Extensions.AspNetCore.Tests.dll (net10.0|x64) passed (1s 168ms)
+
+Test run summary: Passed!
+  total: 1529
+  failed: 0
+  succeeded: 1529
+  skipped: 0
+  duration: 1s 351ms

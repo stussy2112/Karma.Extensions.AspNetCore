@@ -25,6 +25,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "copilot", "copilot", "{02EA
 		.github\instructions\coding-guidelines.instructions.md = .github\instructions\coding-guidelines.instructions.md
 		.github\instructions\coding-style.instructions.md = .github\instructions\coding-style.instructions.md
 		.github\copilot-instructions.md = .github\copilot-instructions.md
+		.github\lessons-learned.md = .github\lessons-learned.md
 		.github\instructions\testing-mstest.instructions.md = .github\instructions\testing-mstest.instructions.md
 	EndProjectSection
 EndProject

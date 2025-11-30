@@ -26,6 +26,10 @@ namespace Karma.Extensions.AspNetCore
   /// extracted from an HTTP context.</remarks>
   public static class EnumerableExtensions
   {
+    private const BindingFlags Binding_Attrs = BindingFlags.Instance | BindingFlags.Public | BindingFlags.IgnoreCase;
+    private static readonly ConcurrentDictionary<(Type, string), Expression<Func<object, object?>>?> _propertySelectorExpressionCache = new();
+    private static readonly ConcurrentDictionary<(Type, string), Func<object, object?>> _propertySelectorCache = new();
+
     /// <summary>
     /// Applies sorting operations to the specified source collection based on the provided sort information.
     /// </summary>
@@ -86,7 +90,7 @@ namespace Karma.Extensions.AspNetCore
     public static IEnumerable<T>? Apply<T>(this PageInfo pageInfo, IEnumerable<T>? source) =>
       source is null || pageInfo is null
         ? source
-        : source.PaginateWithOffset(pageInfo);
+        : PaginateWithOffset(source, pageInfo);
 
     /// <summary>
     /// Returns a paginated subset of the source collection using cursor-based pagination.
@@ -121,13 +125,13 @@ namespace Karma.Extensions.AspNetCore
       //if (!string.IsNullOrWhiteSpace(before) && TValue.TryParse(before, null, out TValue? beforeParsed) && beforeParsed is not null)
       if (UseBeforePaging(pageInfo.Before, out TValue? beforeCursorVal))
       {
-        return sortedSource.IterateBefore(beforeCursorVal, cursorProperty, limit);
+        return IterateBefore(sortedSource, beforeCursorVal, cursorProperty, limit);
       }
 
       //if (!string.IsNullOrWhiteSpace(after) && TValue.TryParse(after, null, out TValue? afterParsed) && afterParsed is not null)
       if (UseAfterPaging(pageInfo.After, out TValue? afterCursorVal))
       {
-        return sortedSource.IterateAfter(afterCursorVal, cursorProperty, limit);
+        return IterateAfter(sortedSource, afterCursorVal, cursorProperty, limit);
       }
 
       // If cursor values couldn't be parsed, return source unchanged
@@ -173,12 +177,12 @@ namespace Karma.Extensions.AspNetCore
       // If the before value is provided and valid, it indicates that we want items that come before the specified cursor.
       if (UseBeforePaging(pageInfo.Before, out TValue beforeParsed))
       {
-        return sortedSource.IterateBefore(beforeParsed, cursorProperty, limit);
+        return IterateBefore(sortedSource, beforeParsed, cursorProperty, limit);
       }
 
       if (UseAfterPaging(pageInfo.After, out TValue afterParsed))
       {
-        return sortedSource.IterateAfter(afterParsed, cursorProperty, limit);
+        return IterateAfter(sortedSource, afterParsed, cursorProperty, limit);
       }
 
       // If cursor values couldn't be parsed, return source unchanged
@@ -511,6 +515,41 @@ namespace Karma.Extensions.AspNetCore
       return groupDictionary;
     }
 
+    internal static Expression<Func<object, object?>>? GetPropertySelectorExpression<T>(string propertyName)
+    {
+      (Type, string) key = (typeof(T), propertyName);
+      return _propertySelectorExpressionCache.GetOrAdd(key, static (propByTypeKey) =>
+      {
+        (Type type, string propName) = propByTypeKey;
+        PropertyInfo? property = type.GetProperty(propName, Binding_Attrs);
+        if (property is null)
+        {
+          return null;
+        }
+
+        ParameterExpression parameter = Expression.Parameter(typeof(object), "obj");
+        UnaryExpression castToType = Expression.Convert(parameter, type);
+        MemberExpression propertyAccess = Expression.Property(castToType, property);
+        UnaryExpression castToObject = Expression.Convert(propertyAccess, typeof(object));
+
+        return Expression.Lambda<Func<object, object?>>(castToObject, parameter);
+      });
+    }
+
+    internal static bool UseAfterPaging<TValue>(string? after, out TValue? afterParsed)
+      where TValue : IComparable<TValue>, IParsable<TValue>
+    {
+      afterParsed = default;
+      return !string.IsNullOrWhiteSpace(after) && TValue.TryParse(after, null, out afterParsed) && afterParsed is not null;
+    }
+
+    internal static bool UseBeforePaging<TValue>(string? before, out TValue? beforeParsed)
+      where TValue : IComparable<TValue>, IParsable<TValue>
+    {
+      beforeParsed = default;
+      return !string.IsNullOrWhiteSpace(before) && TValue.TryParse(before, null, out beforeParsed) && beforeParsed is not null;
+    }
+
     private static IOrderedEnumerable<T> ApplySort<T>(IEnumerable<T> source, IOrderedEnumerable<T>? orderedResult, SortInfo sortInfo, Func<T, object?> keySelector)
     {
       if (orderedResult is null)
@@ -525,7 +564,7 @@ namespace Karma.Extensions.AspNetCore
         : orderedResult.ThenByDescending(keySelector);
     }
 
-    private static IList? ConvertEnumerableAsList(this IEnumerable? items, Type contained)
+    private static IList? ConvertEnumerableAsList(IEnumerable? items, Type contained)
     {
       if (items is null)
       {
@@ -548,7 +587,7 @@ namespace Karma.Extensions.AspNetCore
       return tempList;
     }
 
-    private static IEnumerable? ConvertEnumerableByMethod(this IEnumerable? items, Type targetType, Type containedType)
+    private static IEnumerable? ConvertEnumerableByMethod(IEnumerable? items, Type targetType, Type containedType)
     {
       if (items is null)
       {
@@ -605,31 +644,16 @@ namespace Karma.Extensions.AspNetCore
       return null;
     }
 
-    private const BindingFlags Binding_Attrs = BindingFlags.Instance | BindingFlags.Public | BindingFlags.IgnoreCase;
-    private static readonly ConcurrentDictionary<(Type, string), Func<object, object?>> _propertySelectorCache = new();
-
     private static Func<T, object?>? GetOrCreatePropertySelector<T>(string propertyName)
     {
       (Type, string propertyName) key = (typeof(T), propertyName);
-      return _propertySelectorCache.GetOrAdd(key, static (k) =>
-      {
-        (Type type, string propName) = k;
-        PropertyInfo? property = type.GetProperty(propName, Binding_Attrs);
-        if (property is null)
-        {
-          return null!;
-        }
+      Func<object, object?>? propertySelector = _propertySelectorCache.GetOrAdd(key, (propByTypeKey) =>
+        GetPropertySelectorExpression<T>(propByTypeKey.Item2)?.Compile()!);
 
-        ParameterExpression parameter = Expression.Parameter(typeof(object), "obj");
-        UnaryExpression castToType = Expression.Convert(parameter, type);
-        MemberExpression propertyAccess = Expression.Property(castToType, property);
-        UnaryExpression castToObject = Expression.Convert(propertyAccess, typeof(object));
-
-        return Expression.Lambda<Func<object, object?>>(castToObject, parameter).Compile();
-      }) as Func<T, object?>;
+      return (entity) => propertySelector?.Invoke(entity!);
     }
 
-    private static IEnumerable<T> IterateAfter<T, TValue>(this IEnumerable<T> source, TValue? cursorValue, Func<T, TValue?> cursorProperty, int limit)
+    private static IEnumerable<T> IterateAfter<T, TValue>(IEnumerable<T> source, TValue? cursorValue, Func<T, TValue?> cursorProperty, int limit)
       where TValue : IComparable<TValue>, IParsable<TValue>
     {
       if (cursorValue is null)
@@ -664,7 +688,7 @@ namespace Karma.Extensions.AspNetCore
       }
     }
 
-    private static IEnumerable<T> IterateAfter<T, TValue>(this IEnumerable<T> source, TValue cursorValue, Func<T, TValue?> cursorProperty, int limit) where TValue
+    private static IEnumerable<T> IterateAfter<T, TValue>(IEnumerable<T> source, TValue cursorValue, Func<T, TValue?> cursorProperty, int limit) where TValue
       : struct, IComparable<TValue>, IParsable<TValue>
     {
       int itemCount = 0;
@@ -689,7 +713,7 @@ namespace Karma.Extensions.AspNetCore
       }
     }
 
-    private static IEnumerable<T> IterateBefore<T, TValue>(this IEnumerable<T> source, TValue? cursorValue, Func<T, TValue?> cursorProperty, int limit)
+    private static IEnumerable<T> IterateBefore<T, TValue>(IEnumerable<T> source, TValue? cursorValue, Func<T, TValue?> cursorProperty, int limit)
       where TValue : IComparable<TValue>, IParsable<TValue>
     {
       if (cursorValue is null)
@@ -736,7 +760,7 @@ namespace Karma.Extensions.AspNetCore
       }
     }
 
-    private static IEnumerable<T> IterateBefore<T, TValue>(this IEnumerable<T> source, TValue cursorValue, Func<T, TValue?> cursorProperty, int limit) where TValue
+    private static IEnumerable<T> IterateBefore<T, TValue>(IEnumerable<T> source, TValue cursorValue, Func<T, TValue?> cursorProperty, int limit) where TValue
       : struct, IComparable<TValue>, IParsable<TValue>
     {
       // For 'before' cursor, we need to collect items until we find the cursor
@@ -773,7 +797,7 @@ namespace Karma.Extensions.AspNetCore
       }
     }
 
-    private static IEnumerable<T> PaginateWithOffset<T>(this IEnumerable<T> source, PageInfo pageInfo)
+    private static IEnumerable<T> PaginateWithOffset<T>(IEnumerable<T> source, PageInfo pageInfo)
     {
       int currentIndex = 0;
       int itemCount = 0;
@@ -799,20 +823,6 @@ namespace Karma.Extensions.AspNetCore
         yield return item;
         itemCount++;
       }
-    }
-
-    private static bool UseAfterPaging<TValue>(string? after, out TValue? afterParsed)
-      where TValue : IComparable<TValue>, IParsable<TValue>
-    {
-      afterParsed = default;
-      return !string.IsNullOrWhiteSpace(after) && TValue.TryParse(after, null, out afterParsed) && afterParsed is not null;
-    }
-
-    private static bool UseBeforePaging<TValue>(string? before, out TValue? beforeParsed)
-      where TValue : IComparable<TValue>, IParsable<TValue>
-    {
-      beforeParsed = default;
-      return !string.IsNullOrWhiteSpace(before) && TValue.TryParse(before, null, out beforeParsed) && beforeParsed is not null;
     }
   }
 }
