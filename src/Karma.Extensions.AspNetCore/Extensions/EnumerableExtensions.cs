@@ -10,7 +10,6 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
-using System.Linq.Expressions;
 using System.Reflection;
 using Karma.Extensions.AspNetCore.DependencyInjection;
 using Microsoft.AspNetCore.Http;
@@ -26,8 +25,6 @@ namespace Karma.Extensions.AspNetCore
   /// extracted from an HTTP context.</remarks>
   public static class EnumerableExtensions
   {
-    private const BindingFlags Binding_Attrs = BindingFlags.Instance | BindingFlags.Public | BindingFlags.IgnoreCase;
-    private static readonly ConcurrentDictionary<(Type, string), Expression<Func<object, object?>>?> _propertySelectorExpressionCache = new();
     private static readonly ConcurrentDictionary<(Type, string), Func<object, object?>> _propertySelectorCache = new();
 
     /// <summary>
@@ -123,13 +120,13 @@ namespace Karma.Extensions.AspNetCore
 
       // If the before value is provided and valid, it indicates that we want items that come before the specified cursor.
       //if (!string.IsNullOrWhiteSpace(before) && TValue.TryParse(before, null, out TValue? beforeParsed) && beforeParsed is not null)
-      if (UseBeforePaging(pageInfo.Before, out TValue? beforeCursorVal))
+      if (PagingHelpers.UseBeforePaging(pageInfo.Before, out TValue? beforeCursorVal))
       {
         return IterateBefore(sortedSource, beforeCursorVal, cursorProperty, limit);
       }
 
       //if (!string.IsNullOrWhiteSpace(after) && TValue.TryParse(after, null, out TValue? afterParsed) && afterParsed is not null)
-      if (UseAfterPaging(pageInfo.After, out TValue? afterCursorVal))
+      if (PagingHelpers.UseAfterPaging(pageInfo.After, out TValue? afterCursorVal))
       {
         return IterateAfter(sortedSource, afterCursorVal, cursorProperty, limit);
       }
@@ -175,12 +172,12 @@ namespace Karma.Extensions.AspNetCore
       int limit = (int)Math.Min(pageInfo.Limit, int.MaxValue);
 
       // If the before value is provided and valid, it indicates that we want items that come before the specified cursor.
-      if (UseBeforePaging(pageInfo.Before, out TValue beforeParsed))
+      if (PagingHelpers.UseBeforePaging(pageInfo.Before, out TValue beforeParsed))
       {
         return IterateBefore(sortedSource, beforeParsed, cursorProperty, limit);
       }
 
-      if (UseAfterPaging(pageInfo.After, out TValue afterParsed))
+      if (PagingHelpers.UseAfterPaging(pageInfo.After, out TValue afterParsed))
       {
         return IterateAfter(sortedSource, afterParsed, cursorProperty, limit);
       }
@@ -201,34 +198,6 @@ namespace Karma.Extensions.AspNetCore
     public static IEnumerable<T>? Filter<T>(this IEnumerable<T> source, FilterInfoCollection? filters)
     {
       if (source is null || filters is null || filters.Count <= 0)
-      {
-        return source;
-      }
-
-      return filters.Apply(source);
-    }
-
-    /// <summary>
-    /// Filters the elements of the specified sequence based on query parameters provided in the HTTP context.
-    /// </summary>
-    /// <remarks>The method uses filter information stored in the <see cref="HttpContext.Items"/> collection
-    /// under the key <c>ContextItemKeys.Filters</c>. If no filters are found or the filter collection is empty, the
-    /// method returns the original sequence.</remarks>
-    /// <typeparam name="T">The type of the elements in the source sequence.</typeparam>
-    /// <param name="source">The sequence of elements to filter. If <paramref name="source"/> is <see langword="null"/>, the method returns
-    /// <see langword="null"/>.</param>
-    /// <param name="httpContext">The HTTP context containing query parameters used to build the filter. If <paramref name="httpContext"/> is <see
-    /// langword="null"/> or does not contain valid filter information, the method returns the original sequence.</param>
-    /// <returns>A filtered sequence of elements that satisfy the query parameters, or the original sequence if no filters are
-    /// applied. Returns <see langword="null"/> if <paramref name="source"/> is <see langword="null"/>.</returns>
-    [return: NotNullIfNotNull(nameof(source))]
-    public static IEnumerable<T>? FilterByQuery<T>(this IEnumerable<T>? source, HttpContext httpContext)
-    {
-      if (source is null
-        || httpContext is null
-        || !httpContext.Items.TryGetValue(ContextItemKeys.Filters, out object? filtersObj)
-        || filtersObj is not FilterInfoCollection filters
-        || filters.Count <= 0)
       {
         return source;
       }
@@ -350,47 +319,6 @@ namespace Karma.Extensions.AspNetCore
     }
 
     /// <summary>
-    /// Paginates a collection of items based on query parameters provided in the HTTP context.
-    /// </summary>
-    /// <remarks>This method supports both offset-based and cursor-based pagination: <list type="bullet">
-    /// <item> <description> For offset-based pagination, the method uses the <c>Offset</c> and <c>Limit</c> values from
-    /// the <see cref="PageInfo"/> object in the HTTP context. </description> </item> <item> <description> For
-    /// cursor-based pagination, the method uses the <c>Before</c> or <c>After</c> cursor values and orders the
-    /// collection by the field specified in <paramref name="cursorProperty"/>. </description> </item> </list> If
-    /// both <c>Before</c> and <c>After</c> are empty, the method defaults to offset-based pagination.</remarks>
-    /// <typeparam name="T">The type of elements in the source collection.</typeparam>
-    /// <typeparam name="TValue">The type of the field used for cursor-based pagination.</typeparam>
-    /// <param name="source">The collection of items to paginate. If <paramref name="source"/> is <see langword="null"/>, the method returns
-    /// <see langword="null"/>.</param>
-    /// <param name="httpContext">The HTTP context containing pagination information. If <paramref name="httpContext"/> is <see langword="null"/>
-    /// or does not contain valid pagination data, the method returns the original <paramref name="source"/>.</param>
-    /// <param name="cursorProperty">A function that selects the field value used for cursor-based pagination. This parameter is required if
-    /// cursor-based pagination is used.</param>
-    /// <returns>A paginated subset of the source collection based on the pagination parameters. If no pagination parameters are
-    /// provided, the method returns the original <paramref name="source"/>.</returns>
-    /// <exception cref="ArgumentNullException">Thrown if <paramref name="cursorProperty"/> is <see langword="null"/> when cursor-based pagination is
-    /// required.</exception>
-    [return: NotNullIfNotNull(nameof(source))]
-    public static IEnumerable<T>? PageByQuery<T, TValue>(this IEnumerable<T> source, HttpContext httpContext, Func<T, TValue?> cursorProperty)
-      where TValue : IComparable<TValue>, IParsable<TValue>
-    {
-      if (source is null
-        || httpContext is null
-        || !httpContext.Items.TryGetValue(ContextItemKeys.PageInfo, out object? pageQuery)
-        || pageQuery is not PageInfo pageInfo)
-      {
-        return source;
-      }
-
-      if (string.IsNullOrWhiteSpace(pageInfo.Before) && string.IsNullOrWhiteSpace(pageInfo.After))
-      {
-        return pageInfo.Apply(source);
-      }
-
-      return pageInfo.Apply(source, cursorProperty);
-    }
-
-    /// <summary>
     /// Sorts the elements of the specified sequence according to the provided sorting criteria.
     /// </summary>
     /// <typeparam name="T">The type of elements in the source sequence.</typeparam>
@@ -408,37 +336,6 @@ namespace Karma.Extensions.AspNetCore
       }
 
       return sortInfos.Apply(source);
-    }
-
-    /// <summary>
-    /// Sorts the elements of the specified <paramref name="source"/> sequence based on the sorting criteria provided in
-    /// the HTTP context.
-    /// </summary>
-    /// <remarks>The sorting is performed based on the property name specified in the
-    /// <c>SortInfo.FieldName</c> property. If the property does not exist on the elements of the sequence, the original
-    /// sequence is returned. The sorting direction is determined by the <c>SortInfo.Direction</c> property, which can
-    /// be either ascending or descending.</remarks>
-    /// <typeparam name="T">The type of elements in the <paramref name="source"/> sequence.</typeparam>
-    /// <param name="source">The sequence of elements to sort. If <paramref name="source"/> is <see langword="null"/>, the method returns
-    /// <see langword="null"/>.</param>
-    /// <param name="httpContext">The HTTP context containing the sorting information. The sorting criteria must be stored in the <see
-    /// cref="HttpContext.Items"/> collection under the key <c>ContextItemKeys.SortInfo</c>, and the value must be of
-    /// type <c>SortInfo</c>.</param>
-    /// <returns>A new sequence of elements sorted according to the specified sorting criteria, or the original <paramref
-    /// name="source"/> sequence if no valid sorting information is found.</returns>
-    [return: NotNullIfNotNull(nameof(source))]
-    public static IEnumerable<T>? SortByQuery<T>(this IEnumerable<T> source, HttpContext httpContext)
-    {
-      if (source is null
-        || httpContext is null
-        || !httpContext.Items.TryGetValue(ContextItemKeys.SortInfo, out object? sortQuery)
-        || sortQuery is not IEnumerable<SortInfo> sortInfo
-        || !sortInfo.Any())
-      {
-        return source;
-      }
-
-      return sortInfo.Apply(source);
     }
 
     /// <summary>
@@ -513,41 +410,6 @@ namespace Karma.Extensions.AspNetCore
       }
 
       return groupDictionary;
-    }
-
-    internal static Expression<Func<object, object?>>? GetPropertySelectorExpression<T>(string propertyName)
-    {
-      (Type, string) key = (typeof(T), propertyName);
-      return _propertySelectorExpressionCache.GetOrAdd(key, static (propByTypeKey) =>
-      {
-        (Type type, string propName) = propByTypeKey;
-        PropertyInfo? property = type.GetProperty(propName, Binding_Attrs);
-        if (property is null)
-        {
-          return null;
-        }
-
-        ParameterExpression parameter = Expression.Parameter(typeof(object), "obj");
-        UnaryExpression castToType = Expression.Convert(parameter, type);
-        MemberExpression propertyAccess = Expression.Property(castToType, property);
-        UnaryExpression castToObject = Expression.Convert(propertyAccess, typeof(object));
-
-        return Expression.Lambda<Func<object, object?>>(castToObject, parameter);
-      });
-    }
-
-    internal static bool UseAfterPaging<TValue>(string? after, out TValue? afterParsed)
-      where TValue : IComparable<TValue>, IParsable<TValue>
-    {
-      afterParsed = default;
-      return !string.IsNullOrWhiteSpace(after) && TValue.TryParse(after, null, out afterParsed) && afterParsed is not null;
-    }
-
-    internal static bool UseBeforePaging<TValue>(string? before, out TValue? beforeParsed)
-      where TValue : IComparable<TValue>, IParsable<TValue>
-    {
-      beforeParsed = default;
-      return !string.IsNullOrWhiteSpace(before) && TValue.TryParse(before, null, out beforeParsed) && beforeParsed is not null;
     }
 
     private static IOrderedEnumerable<T> ApplySort<T>(IEnumerable<T> source, IOrderedEnumerable<T>? orderedResult, SortInfo sortInfo, Func<T, object?> keySelector)
@@ -648,7 +510,7 @@ namespace Karma.Extensions.AspNetCore
     {
       (Type, string propertyName) key = (typeof(T), propertyName);
       Func<object, object?>? propertySelector = _propertySelectorCache.GetOrAdd(key, (propByTypeKey) =>
-        GetPropertySelectorExpression<T>(propByTypeKey.Item2)?.Compile()!);
+        PagingHelpers.GetPropertySelectorExpression<T>(propByTypeKey.Item2)?.Compile()!);
 
       return (entity) => propertySelector?.Invoke(entity!);
     }

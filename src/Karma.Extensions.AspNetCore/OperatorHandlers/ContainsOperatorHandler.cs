@@ -80,11 +80,7 @@ namespace Karma.Extensions.AspNetCore
 
       return Expression.AndAlso(
         Expression.NotEqual(enumerableExpr, Expression.Constant(null, enumerableExpr.Type)),
-        Expression.Call(
-          containsMethod,
-          enumerableExpr,
-          valueExpr
-      ));
+        Expression.Call(containsMethod, enumerableExpr, valueExpr));
     }
   }
 }

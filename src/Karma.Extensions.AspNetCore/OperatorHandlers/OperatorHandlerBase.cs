@@ -85,7 +85,8 @@ namespace Karma.Extensions.AspNetCore
         Expression.Call(
           property,
           method,
-          Expression.Constant(comparisonValue?.ToString() ?? string.Empty, typeof(string)), Expression.Constant(StringComparison.OrdinalIgnoreCase)));
+          Expression.Constant(comparisonValue?.ToString() ?? string.Empty, typeof(string)),
+          Expression.Constant(StringComparison.OrdinalIgnoreCase)));
     }
 
     protected static ConstantExpression BuildValueAccessExpression(object? comparisonValue, Type type)
@@ -155,7 +156,7 @@ namespace Karma.Extensions.AspNetCore
     }
 
     protected static bool IsNotNullableValueType(Type type) =>
-          type.IsValueType && Nullable.GetUnderlyingType(type) is null;
+          type.IsValueType && !IsNullableType(type);
 
     /// <summary>
     /// Adds a null check to a member access expression. If the instance is null, returns default(member.Type), else member.

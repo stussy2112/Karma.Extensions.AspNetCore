@@ -137,14 +137,21 @@ namespace Karma.Extensions.AspNetCore
       int limit = (int)Math.Min(pageInfo.Limit, int.MaxValue);
 
       // Before cursor takes precedence
-      if (EnumerableExtensions.UseBeforePaging(pageInfo.Before, out TValue? beforeCursorVal))
+      if (PagingHelpers.UseBeforePaging(pageInfo.Before, out TValue? beforeCursorVal))
       {
-        return ApplyBeforeCursor(source, cursorProperty, beforeCursorVal, limit);
+        // Note: OrderByDescending for "before" cursor, then reverse results
+        return source
+            .Where(BuildCursorPredicate(cursorProperty, beforeCursorVal, Expression.LessThan))
+            .OrderByDescending(cursorProperty)
+            .Take(limit);
       }
 
-      if (EnumerableExtensions.UseAfterPaging(pageInfo.After, out TValue? afterCursorVal))
+      if (PagingHelpers.UseAfterPaging(pageInfo.After, out TValue? afterCursorVal))
       {
-        return ApplyAfterCursor(source, cursorProperty, afterCursorVal, limit);
+        return source
+            .Where(BuildCursorPredicate(cursorProperty, afterCursorVal, Expression.GreaterThan))
+            .OrderBy(cursorProperty)
+            .Take(limit);
       }
 
       // No cursors - just order and take
@@ -168,14 +175,21 @@ namespace Karma.Extensions.AspNetCore
       int limit = (int)Math.Min(pageInfo.Limit, int.MaxValue);
 
       // Before cursor takes precedence
-      if (EnumerableExtensions.UseBeforePaging(pageInfo.Before, out TValue beforeParsed))
+      if (PagingHelpers.UseBeforePaging(pageInfo.Before, out TValue beforeCursorVal))
       {
-        return ApplyBeforeCursor(source, cursorProperty, beforeParsed, limit);
+        // Note: OrderByDescending for "before" cursor, then reverse results
+        return source
+            .Where(BuildCursorPredicate(cursorProperty, beforeCursorVal, Expression.LessThan))
+            .OrderByDescending(cursorProperty)
+            .Take(limit);
       }
 
-      if (EnumerableExtensions.UseAfterPaging(pageInfo.After, out TValue afterParsed))
+      if (PagingHelpers.UseAfterPaging(pageInfo.After, out TValue afterCursorVal))
       {
-        return ApplyAfterCursor(source, cursorProperty, afterParsed, limit);
+        return source
+            .Where(BuildCursorPredicate(cursorProperty, afterCursorVal, Expression.GreaterThan))
+            .OrderBy(cursorProperty)
+            .Take(limit);
       }
 
       // No cursors - just order and take
@@ -278,10 +292,7 @@ namespace Karma.Extensions.AspNetCore
     /// <returns>An <see cref="IQueryable{T}"/> with cursor-based pagination applied, or null if source is null.</returns>
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="cursorProperty"/> is null.</exception>
     [return: NotNullIfNotNull(nameof(source))]
-    public static IQueryable<T>? Page<T, TValue>(
-        this IQueryable<T>? source,
-        PageInfo? pageInfo,
-        Expression<Func<T, TValue?>> cursorProperty)
+    public static IQueryable<T>? Page<T, TValue>(this IQueryable<T>? source, PageInfo? pageInfo, Expression<Func<T, TValue?>> cursorProperty)
         where TValue : IComparable<TValue>, IParsable<TValue>
     {
       ArgumentNullException.ThrowIfNull(cursorProperty);
@@ -331,18 +342,18 @@ namespace Karma.Extensions.AspNetCore
       return sortInfos.Apply(source);
     }
 
-    internal static Expression<Func<T, object?>>? GetOrCreatePropertySelectorExpression<T>(string propertyName)
+    private static IOrderedQueryable<T> ApplySort<T>(IQueryable<T> source, IOrderedQueryable<T>? orderedResult, SortInfo sortInfo, Expression<Func<T, object?>> keySelector)
     {
-      Expression<Func<object, object?>>? cachedExpression = EnumerableExtensions.GetPropertySelectorExpression<T>(propertyName);
-      if (cachedExpression is null)
+      if (orderedResult is null)
       {
-        return null;
+        return sortInfo.Direction is System.ComponentModel.ListSortDirection.Ascending
+          ? source.OrderBy(keySelector)
+          : source.OrderByDescending(keySelector);
       }
 
-      // Convert Expression<Func<object, object?>> to Expression<Func<T, object?>>
-      ParameterExpression typedParameter = Expression.Parameter(typeof(T), "entity");
-      InvocationExpression invocation = Expression.Invoke(cachedExpression, Expression.Convert(typedParameter, typeof(object)));
-      return Expression.Lambda<Func<T, object?>>(invocation, typedParameter);
+      return sortInfo.Direction is System.ComponentModel.ListSortDirection.Ascending
+        ? orderedResult.ThenBy(keySelector)
+        : orderedResult.ThenByDescending(keySelector);
     }
 
     /// <summary>
@@ -356,29 +367,27 @@ namespace Karma.Extensions.AspNetCore
     private static BinaryExpression BuildCursorComparisonExpression<TValue>(MemberExpression property, TValue cursorValue, Func<Expression, Expression, BinaryExpression> comparisonFactory)
         where TValue : IComparable<TValue>, IParsable<TValue>
     {
-      Type propertyType = property.Type;
-      Type underlyingType = Nullable.GetUnderlyingType(propertyType) ?? propertyType;
-
       // For string comparisons, use String.Compare instead of > or <
       if (typeof(TValue) == typeof(string))
       {
         return BuildStringComparisonExpression(property, cursorValue, comparisonFactory);
       }
 
-      if (Nullable.GetUnderlyingType(propertyType) != null)
+      Type propertyType = property.Type;
+      Type constantPropertyType = Nullable.GetUnderlyingType(propertyType) ?? propertyType;
+      ConstantExpression constant = Expression.Constant(cursorValue, constantPropertyType);
+
+      if (Nullable.GetUnderlyingType(propertyType) is not null)
       {
         // Nullable value type (e.g., int?)
         MemberExpression hasValue = Expression.Property(property, "HasValue");
         MemberExpression value = Expression.Property(property, "Value");
-        ConstantExpression constantValue = Expression.Constant(cursorValue, underlyingType);
-        BinaryExpression comparison = comparisonFactory(value, constantValue);
+        BinaryExpression comparison = comparisonFactory(value, constant);
         return Expression.AndAlso(hasValue, comparison);
       }
 
       // Non-nullable value type
-      ConstantExpression constant = Expression.Constant(cursorValue, propertyType);
-      BinaryExpression comparisonExpr = comparisonFactory(property, constant);
-      return comparisonExpr;
+      return comparisonFactory(property, constant);
     }
 
     /// <summary>
@@ -389,23 +398,41 @@ namespace Karma.Extensions.AspNetCore
       // String.Compare(property, cursorValue) > 0 or < 0
       MethodInfo? compareMethod = typeof(string).GetMethod(nameof(string.Compare), [typeof(string), typeof(string)]);
 
-      ConstantExpression constantValue = Expression.Constant(cursorValue, typeof(string));
+      ConstantExpression cursorConstantValue = Expression.Constant(cursorValue, typeof(string));
+      ConstantExpression zero = Expression.Constant(0);
+      MethodCallExpression compareCall = Expression.Call(compareMethod!, property, cursorConstantValue);
+      BinaryExpression comparison = comparisonFactory(compareCall, zero);
 
       // Handle nullable strings
-      if (Nullable.GetUnderlyingType(property.Type) == null && property.Type == typeof(string))
+      if (Nullable.GetUnderlyingType(property.Type) is null && property.Type == typeof(string))
       {
         // Non-nullable string - add null check
         BinaryExpression notNull = Expression.NotEqual(property, Expression.Constant(null, typeof(string)));
-        MethodCallExpression compareCall = Expression.Call(compareMethod!, property, constantValue);
-        ConstantExpression zero = Expression.Constant(0);
-        BinaryExpression comparison = comparisonFactory(compareCall, zero);
         return Expression.AndAlso(notNull, comparison);
       }
 
       // For nullable string properties
-      MethodCallExpression compareCallNullable = Expression.Call(compareMethod!, property, constantValue);
-      ConstantExpression zeroNullable = Expression.Constant(0);
-      return comparisonFactory(compareCallNullable, zeroNullable);
+      return comparison;
+    }
+
+    private static Expression<Func<T, bool>> BuildCursorPredicate<T, TValue>(Expression<Func<T, TValue?>> cursorProperty, TValue? cursorValue, Func<Expression, Expression, BinaryExpression> comparisonFactory)
+        where TValue : IComparable<TValue>, IParsable<TValue>
+    {
+      ParameterExpression parameter = cursorProperty.Parameters[0];
+      MemberExpression property = GetMemberExpression(cursorProperty);
+
+      Expression comparison = BuildCursorComparisonExpression(property, cursorValue!, comparisonFactory);
+      return Expression.Lambda<Func<T, bool>>(comparison, parameter);
+    }
+
+    private static Expression<Func<T, bool>> BuildCursorPredicate<T, TValue>(Expression<Func<T, TValue?>> cursorProperty, TValue cursorValue, Func<Expression, Expression, BinaryExpression> comparisonFactory)
+        where TValue : struct, IComparable<TValue>, IParsable<TValue>
+    {
+      ParameterExpression parameter = cursorProperty.Parameters[0];
+      MemberExpression property = GetMemberExpression(cursorProperty);
+
+      Expression comparison = BuildCursorComparisonExpression(property, cursorValue, comparisonFactory);
+      return Expression.Lambda<Func<T, bool>>(comparison, parameter);
     }
 
     /// <summary>
@@ -435,106 +462,45 @@ namespace Karma.Extensions.AspNetCore
       return memberExpression;
     }
 
-    /// <summary>
-    /// Applies "after" cursor logic: WHERE cursor_property > cursor_value ORDER BY cursor_property ASC.
-    /// </summary>
-    private static IQueryable<T> ApplyAfterCursor<T, TValue>(IQueryable<T> source, Expression<Func<T, TValue?>> cursorProperty, TValue? cursorValue,
-        int limit)
-        where TValue : IComparable<TValue>, IParsable<TValue>
+    private static Expression<Func<T, object?>>? GetOrCreatePropertySelectorExpression<T>(string propertyName)
     {
-      if (cursorValue is null)
+      Expression<Func<object, object?>>? cachedExpression = PagingHelpers.GetPropertySelectorExpression<T>(propertyName);
+      if (cachedExpression is null)
       {
-        return source.OrderBy(cursorProperty).Take(limit);
+        return null;
       }
 
-      // Build expression: entity => cursorProperty(entity) > cursorValue
-      // This translates to SQL: WHERE cursor_column > @cursor_value
-      ParameterExpression parameter = cursorProperty.Parameters[0];
-      MemberExpression property = GetMemberExpression(cursorProperty);
+      // Convert Expression<Func<object, object?>> to Expression<Func<T, object?>> without using Expression.Invoke
+      ParameterExpression typedParameter = Expression.Parameter(typeof(T), "entity");
 
-      Expression comparison = BuildCursorComparisonExpression(property, cursorValue, Expression.GreaterThan);
-      var predicate = Expression.Lambda<Func<T, bool>>(comparison, parameter);
+      ParameterReplaceVisitor replacer = new(cachedExpression.Parameters[0], typedParameter);
+      Expression newBody = replacer.Visit(cachedExpression.Body)!;
 
-      return source
-          .Where(predicate)
-          .OrderBy(cursorProperty)
-          .Take(limit);
+      return Expression.Lambda<Func<T, object?>>(newBody, typedParameter);
     }
 
-    /// <summary>
-    /// Overload for non-nullable struct cursor types.
-    /// </summary>
-    private static IQueryable<T> ApplyAfterCursor<T, TValue>(IQueryable<T> source, Expression<Func<T, TValue?>> cursorProperty, TValue cursorValue, int limit)
-        where TValue : struct, IComparable<TValue>, IParsable<TValue>
+    // Helper visitor to replace a specific ParameterExpression with another expression
+    private sealed class ParameterReplaceVisitor : ExpressionVisitor
     {
-      // Build expression: entity => cursorProperty(entity).HasValue && cursorProperty(entity).Value > cursorValue
-      ParameterExpression parameter = cursorProperty.Parameters[0];
-      MemberExpression property = GetMemberExpression(cursorProperty);
+      private readonly ParameterExpression _target;
+      private readonly Expression _replacement;
 
-      Expression comparison = BuildCursorComparisonExpression(property, cursorValue, Expression.GreaterThan);
-      var predicate = Expression.Lambda<Func<T, bool>>(comparison, parameter);
-
-      return source
-          .Where(predicate)
-          .OrderBy(cursorProperty)
-          .Take(limit);
-    }
-
-    /// <summary>
-    /// Applies "before" cursor logic: WHERE cursor_property &lt; cursor_value ORDER BY cursor_property DESC.
-    /// </summary>
-    private static IQueryable<T> ApplyBeforeCursor<T, TValue>(IQueryable<T> source, Expression<Func<T, TValue?>> cursorProperty, TValue? cursorValue, int limit)
-        where TValue : IComparable<TValue>, IParsable<TValue>
-    {
-      if (cursorValue is null)
+      public ParameterReplaceVisitor(ParameterExpression target, Expression replacement)
       {
-        return source.OrderBy(cursorProperty).Take(limit);
+        ArgumentNullException.ThrowIfNull(target);
+        ArgumentNullException.ThrowIfNull(replacement);
+        (_target, _replacement) = (target, replacement);
       }
 
-      // Build expression: entity => cursorProperty(entity) < cursorValue
-      ParameterExpression parameter = cursorProperty.Parameters[0];
-      MemberExpression property = GetMemberExpression(cursorProperty);
-
-      Expression comparison = BuildCursorComparisonExpression(property, cursorValue, Expression.LessThan);
-      var predicate = Expression.Lambda<Func<T, bool>>(comparison, parameter);
-
-      // Note: OrderByDescending for "before" cursor, then reverse results
-      return source
-          .Where(predicate)
-          .OrderByDescending(cursorProperty)
-          .Take(limit);
-    }
-
-    /// <summary>
-    /// Overload for non-nullable struct cursor types (before).
-    /// </summary>
-    private static IQueryable<T> ApplyBeforeCursor<T, TValue>(IQueryable<T> source, Expression<Func<T, TValue?>> cursorProperty, TValue cursorValue, int limit)
-        where TValue : struct, IComparable<TValue>, IParsable<TValue>
-    {
-      ParameterExpression parameter = cursorProperty.Parameters[0];
-      MemberExpression property = GetMemberExpression(cursorProperty);
-
-      Expression comparison = BuildCursorComparisonExpression(property, cursorValue, Expression.LessThan);
-      var predicate = Expression.Lambda<Func<T, bool>>(comparison, parameter);
-
-      return source
-          .Where(predicate)
-          .OrderByDescending(cursorProperty)
-          .Take(limit);
-    }
-
-    private static IOrderedQueryable<T> ApplySort<T>(IQueryable<T> source, IOrderedQueryable<T>? orderedResult, SortInfo sortInfo, Expression<Func<T, object?>> keySelector)
-    {
-      if (orderedResult is null)
+      protected override Expression VisitParameter(ParameterExpression node)
       {
-        return sortInfo.Direction is System.ComponentModel.ListSortDirection.Ascending
-          ? source.OrderBy(keySelector)
-          : source.OrderByDescending(keySelector);
-      }
+        if (node == _target)
+        {
+          return _replacement;
+        }
 
-      return sortInfo.Direction is System.ComponentModel.ListSortDirection.Ascending
-        ? orderedResult.ThenBy(keySelector)
-        : orderedResult.ThenByDescending(keySelector);
+        return base.VisitParameter(node);
+      }
     }
   }
 }
